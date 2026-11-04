@@ -1,27 +1,128 @@
 import { PrismaClient } from '@prisma/client'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { styleSeeds, promptSeeds, effectSeeds } from './seed-data'
+import { extraPromptSeeds, extraEffectSeeds } from './seed-extra'
 
 const db = new PrismaClient()
 
+// 附件《代码动画》341 风格库（解析产物）
+interface AttachmentStyle {
+  slug: string
+  sid: string
+  name: string
+  nameEn: string
+  series: string
+  seriesLabel: string
+  subCategory: string
+  category: string
+  looksLike: string
+  suitableFor: string
+  keywords: string
+  styleTag: string
+  year: string
+  hasStill: boolean
+  promptFull: string
+}
+
+function loadAttachmentStyles() {
+  try {
+    const raw = readFileSync(join(__dirname, 'styles-attachment.json'), 'utf-8')
+    const data = JSON.parse(raw) as { styles: AttachmentStyle[] }
+    return data.styles.map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      nameEn: s.nameEn,
+      category: s.seriesLabel,
+      description: s.looksLike || `${s.name}（${s.seriesLabel}）`,
+      tags: [s.keywords, s.suitableFor, s.styleTag].filter(Boolean).join(',').slice(0, 200),
+      palette: '',
+      sourceRepo:
+        s.series === 'L'
+          ? 'lemo-opuscar'
+          : s.series === 'V'
+            ? 'mg-styles-15'
+            : s.series === 'X'
+              ? 'code-video'
+              : 'code-animation-pack',
+      difficulty: '',
+      starterPrompt: s.promptFull.slice(0, 420),
+      series: s.series,
+      sid: s.sid,
+      looksLike: s.looksLike,
+      suitableFor: s.suitableFor,
+      promptFull: s.promptFull,
+      hasStill: s.hasStill,
+    }))
+  } catch (err) {
+    console.warn('[seed] 附件风格库加载失败，跳过', err)
+    return []
+  }
+}
+
+// 附件 A–G 代码样片 Canvas 动效（解析产物）
+function loadAgEffects() {
+  try {
+    const raw = readFileSync(join(__dirname, 'effects-ag.json'), 'utf-8')
+    return JSON.parse(raw) as Array<{
+      name: string
+      nameEn: string
+      category: string
+      description: string
+      codeSnippet: string
+      prompt: string
+      sourceRepo: string
+      demo: string
+    }>
+  } catch (err) {
+    console.warn('[seed] A-G 动效加载失败，跳过', err)
+    return []
+  }
+}
+
 async function main() {
+  const attachmentStyles = loadAttachmentStyles()
+  const agEffects = loadAgEffects()
+
+  // 精选风格：补系列字段
+  const curatedStyles = styleSeeds.map((s) => ({
+    ...s,
+    series: '精选',
+    sid: '',
+    looksLike: '',
+    suitableFor: '',
+    promptFull: '',
+    hasStill: false,
+  }))
+
+  const allStyles = [...curatedStyles, ...attachmentStyles]
+  const allPrompts = [...promptSeeds, ...extraPromptSeeds]
+  const allEffects = [...effectSeeds, ...extraEffectSeeds, ...agEffects]
+
   // 幂等：清空后重灌
   await db.generation.deleteMany()
   await db.effect.deleteMany()
   await db.prompt.deleteMany()
   await db.style.deleteMany()
 
-  for (const s of styleSeeds) {
-    await db.style.create({ data: s })
+  const batchSize = 50
+  for (let i = 0; i < allStyles.length; i += batchSize) {
+    await db.style.createMany({ data: allStyles.slice(i, i + batchSize) })
   }
-  for (const p of promptSeeds) {
-    await db.prompt.create({ data: { ...p, copyCount: Math.floor(Math.random() * 40) } })
+  for (let i = 0; i < allPrompts.length; i += batchSize) {
+    await db.prompt.createMany({
+      data: allPrompts.slice(i, i + batchSize).map((p) => ({
+        ...p,
+        copyCount: Math.floor(Math.random() * 40),
+      })),
+    })
   }
-  for (const e of effectSeeds) {
-    await db.effect.create({ data: e })
+  for (let i = 0; i < allEffects.length; i += batchSize) {
+    await db.effect.createMany({ data: allEffects.slice(i, i + batchSize) })
   }
 
   console.log(
-    `Seeded: ${styleSeeds.length} styles, ${promptSeeds.length} prompts, ${effectSeeds.length} effects`
+    `Seeded: ${allStyles.length} styles (${curatedStyles.length} curated + ${attachmentStyles.length} attachment), ${allPrompts.length} prompts, ${allEffects.length} effects (${agEffects.length} AG canvas)`
   )
 }
 

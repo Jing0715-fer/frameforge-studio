@@ -23,7 +23,7 @@ export function SiteFooter() {
           </div>
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              灵感来源 · 14 个开源项目
+              灵感来源 · 15 个开源项目 + 341 风格库附件
             </h3>
             <ul className="mt-3 flex flex-wrap gap-2">
               {REPOS.map((r) => (

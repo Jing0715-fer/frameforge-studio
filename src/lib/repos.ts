@@ -1,4 +1,4 @@
-// 14 个灵感来源开源仓库（数据来自用户提供榜单）
+// 15 个灵感来源开源仓库 + 附件《代码动画》风格库（数据来自用户提供榜单与附件）
 export interface RepoInfo {
   slug: string
   name: string
@@ -22,6 +22,8 @@ export const REPOS: RepoInfo[] = [
   { slug: 'awesome-claude-5-5-videos', name: 'athemeroy/awesome-claude-5-5-videos', stars: '750', desc: '对 1000+ 支视频做抽样核验的来源索引，标注每支视频由谁完成渲染', rank: 12 },
   { slug: 'opus-video-prompts', name: 'joeseesun/opus-video-prompts', stars: '520', desc: '中文案例 + 可直接复制的提示词，按「一句话/模板/参考图/长提示词」分类', rank: 13 },
   { slug: 'shipvideo', name: 'diggerhq/shipvideo', stars: '340', desc: '丢一个网址或描述，自动产出一支 20~40 秒产品发布片，含完整服务端渲染 Agent', rank: 14 },
+  { slug: 'fy-code-animation', name: 'Akillll-DuoHe/fy-code-animation', stars: '新', desc: '《俯仰代码动画》创作方法论技能：语义分镜 + 341 风格库检索 + 镜头/转场/文字/音乐配方 + 任务卡与返修体系，本平台 AI 能力的骨架', rank: 15 },
+  { slug: 'code-animation-pack', name: '附件《代码动画》341 风格库', stars: '附件', desc: '341 种代码动画风格提示词（A–G 代码样片/M 动态/K 卡通/Z 中国风/H 版式/L Lemo/V mg/X code-video/R 参考/O 奥斯卡 98 部），193 种带静帧', rank: 16 },
 ]
 
 export function getRepo(slug: string): RepoInfo | undefined {

@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import {
   Clapperboard,
   Clock,
   Download,
   FileText,
+  LayoutTemplate,
   Loader2,
   Monitor,
   Smartphone,
@@ -34,11 +36,13 @@ import { copyText, useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
 import {
   FRAMEWORK_LABELS,
+  OUTPUT_MODE_LABELS,
   PACING_LABELS,
   VIDEO_TYPES,
   type AspectKey,
   type FrameworkKey,
   type GenerationRecord,
+  type OutputModeKey,
   type PacingKey,
   type PromptItem,
   type StoryboardResult,
@@ -52,11 +56,18 @@ export interface CurrentGeneration {
   result: StoryboardResult
 }
 
+export interface CurrentTaskCard {
+  id: number
+  meta: StoryboardMeta
+  title: string
+  markdown: string
+}
+
 export function parseGeneration(g: GenerationRecord): CurrentGeneration | null {
   try {
-    const result = JSON.parse(g.output) as StoryboardResult
-    const input = JSON.parse(g.input || '{}')
-    if (!result?.shots?.length) return null
+    const output = typeof g.output === 'string' ? JSON.parse(g.output) : g.output
+    const input = typeof g.input === 'string' ? JSON.parse(g.input || '{}') : g.input ?? {}
+    if (!output?.shots?.length) return null
     return {
       id: g.id,
       meta: {
@@ -66,7 +77,29 @@ export function parseGeneration(g: GenerationRecord): CurrentGeneration | null {
         duration: input.duration,
         pacing: input.pacing,
       },
-      result,
+      result: output as StoryboardResult,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function parseTaskCard(g: GenerationRecord): CurrentTaskCard | null {
+  try {
+    const output = typeof g.output === 'string' ? JSON.parse(g.output) : g.output
+    if (!output?.markdown) return null
+    const input = typeof g.input === 'string' ? JSON.parse(g.input || '{}') : g.input ?? {}
+    return {
+      id: g.id,
+      meta: {
+        framework: g.framework,
+        styleName: g.styleName,
+        aspect: input.aspect,
+        duration: input.duration,
+        pacing: input.pacing,
+      },
+      title: output.title ?? g.title,
+      markdown: output.markdown as string,
     }
   } catch {
     return null
@@ -80,12 +113,21 @@ const EXAMPLE_IDEAS = [
 ]
 
 const LOADING_MESSAGES = [
-  '正在理解你的创意…',
-  '正在匹配视觉风格与色板…',
-  '正在设计镜头语言与构图…',
-  '正在编排时间轴与节奏卡点…',
+  '正在读懂你的创意与语义结构…',
+  '正在检索风格库并翻译视觉语法…',
+  '正在做语义分段与镜头信息任务设计…',
+  '正在编排时间轴、阅读窗与接缝…',
   '正在撰写逐镜头实现提示词…',
-  '正在做镜头连贯性验收…',
+  '正在按质量底线做连贯性验收…',
+]
+
+const TASKCARD_LOADING_MESSAGES = [
+  '正在做全文理解与语义分段…',
+  '正在设计重点词三级力度…',
+  '正在写风格卡与统一视觉系统…',
+  '正在写逐镜分镜与事件表…',
+  '正在设计音乐四案与音效表…',
+  '正在整理检查计划与风险清单…',
 ]
 
 export function Studio({
@@ -104,14 +146,35 @@ export function Studio({
 
   const [generating, setGenerating] = useState(false)
   const [current, setCurrent] = useState<CurrentGeneration | null>(null)
+  const [taskCard, setTaskCard] = useState<CurrentTaskCard | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [statusIdx, setStatusIdx] = useState(0)
   const timersRef = useRef<ReturnType<typeof setInterval>[]>([])
 
-  const styleCategories = useMemo(
-    () => Array.from(new Set(styles.map((s) => s.category))),
-    [styles]
-  )
+  // 风格下拉按系列分组
+  const styleSeries = useMemo(() => {
+    const order = ['精选', 'AG', 'M', 'K', 'Z', 'H', 'L', 'V', 'X', 'R', 'O']
+    const labels: Record<string, string> = {
+      精选: '精选详解',
+      AG: 'A–G 代码样片',
+      M: 'M 动态风格',
+      K: 'K 卡通画风',
+      Z: 'Z 中国风',
+      H: 'H 现成版式',
+      L: 'L Lemo-Opuscar',
+      V: 'V mg-styles-15',
+      X: 'X code-video',
+      R: 'R 照参考学来的',
+      O: 'O 奥斯卡 98 部',
+    }
+    return order
+      .map((key) => ({
+        key,
+        label: labels[key] ?? key,
+        items: styles.filter((s) => (s.series || '精选') === key),
+      }))
+      .filter((g) => g.items.length > 0)
+  }, [styles])
 
   useEffect(() => {
     return () => timersRef.current.forEach(clearInterval)
@@ -135,12 +198,14 @@ export function Studio({
     }
     setGenerating(true)
     setCurrent(null)
+    setTaskCard(null)
     setElapsed(0)
     setStatusIdx(0)
 
+    const messages = form.outputMode === 'taskcard' ? TASKCARD_LOADING_MESSAGES : LOADING_MESSAGES
     timersRef.current.forEach(clearInterval)
     const t1 = setInterval(() => setElapsed((e) => e + 1), 1000)
-    const t2 = setInterval(() => setStatusIdx((i) => (i + 1) % LOADING_MESSAGES.length), 4500)
+    const t2 = setInterval(() => setStatusIdx((i) => (i + 1) % messages.length), 4500)
     timersRef.current = [t1, t2]
 
     try {
@@ -152,27 +217,46 @@ export function Studio({
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || '生成失败')
 
-      const gen = data.generation as GenerationRecord & { output: StoryboardResult | string }
-      const result: StoryboardResult =
-        typeof gen.output === 'string' ? JSON.parse(gen.output) : gen.output
-      setCurrent({
-        id: gen.id,
-        meta: {
-          framework: form.framework,
-          styleName: form.styleSlug === 'auto' ? result.styleGuide?.name ?? 'AI 自由发挥' : (styles.find((s) => s.slug === form.styleSlug)?.name ?? 'AI 自由发挥'),
-          aspect: form.aspect,
-          duration: form.duration,
-          pacing: form.pacing,
-        },
-        result,
-      })
-      onHistoryChange([
-        { ...gen, output: JSON.stringify(result), createdAt: gen.createdAt ?? new Date().toISOString() },
-        ...history,
-      ].slice(0, 24))
-      toast.success(`分镜稿《${result.title}》已生成`, {
-        description: `${result.shots.length} 个镜头 · 总时长 ${result.totalDuration ?? form.duration} 秒`,
-      })
+      const gen = data.generation as GenerationRecord & { output: StoryboardResult | { title: string; markdown: string } | string }
+      const meta: StoryboardMeta = {
+        framework: form.framework,
+        styleName:
+          form.styleSlug === 'auto'
+            ? 'AI 自由发挥'
+            : (styles.find((s) => s.slug === form.styleSlug)?.name ?? 'AI 自由发挥'),
+        aspect: form.aspect,
+        duration: form.duration,
+        pacing: form.pacing,
+      }
+
+      if (form.outputMode === 'taskcard') {
+        const output = typeof gen.output === 'string' ? JSON.parse(gen.output) : gen.output
+        const card: CurrentTaskCard = {
+          id: gen.id,
+          meta,
+          title: (output as { title?: string })?.title ?? '动画任务卡',
+          markdown: (output as { markdown?: string })?.markdown ?? '',
+        }
+        setTaskCard(card)
+        onHistoryChange([
+          { ...gen, output: JSON.stringify({ title: card.title, markdown: card.markdown }), createdAt: gen.createdAt ?? new Date().toISOString() },
+          ...history,
+        ].slice(0, 24))
+        toast.success(`任务卡《${card.title}》已生成`, {
+          description: '12 节 fy 全案设计文档 · 可直接交给工程阶段开工',
+        })
+      } else {
+        const result: StoryboardResult =
+          typeof gen.output === 'string' ? JSON.parse(gen.output) : (gen.output as StoryboardResult)
+        setCurrent({ id: gen.id, meta: { ...meta, styleName: form.styleSlug === 'auto' ? result.styleGuide?.name ?? 'AI 自由发挥' : meta.styleName }, result })
+        onHistoryChange([
+          { ...gen, output: JSON.stringify(result), createdAt: gen.createdAt ?? new Date().toISOString() },
+          ...history,
+        ].slice(0, 24))
+        toast.success(`分镜稿《${result.title}》已生成`, {
+          description: `${result.shots.length} 个镜头 · 总时长 ${result.totalDuration ?? form.duration} 秒`,
+        })
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '生成失败，请重试')
     } finally {
@@ -208,8 +292,9 @@ export function Studio({
       <div className="mb-6">
         <h2 className="text-xl font-bold text-zinc-50">AI 分镜工坊</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          描述你的创意，AI 导演将产出逐镜头分镜稿 + 可直接投喂 Claude Code
-          的实现提示词（支持 Hyperframes / Remotion / p5.js / 通用剪辑）
+          fy 语义分镜方法驱动 · 可产出逐镜头分镜稿（含阅读窗/接缝/能量曲线）或 12
+          节任务卡全案设计，实现提示词直接投喂 Claude Code（Hyperframes / Remotion /
+          p5.js / 通用剪辑）
         </p>
       </div>
 
@@ -224,6 +309,36 @@ export function Studio({
             <CardDescription>表单越具体，分镜越精准</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            {/* 输出模式 */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-300">输出模式</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { key: 'storyboard', label: '分镜稿', desc: '逐镜 JSON · 快', icon: Clapperboard },
+                    { key: 'taskcard', label: '任务卡', desc: '12 节全案 · 深', icon: LayoutTemplate },
+                  ] as { key: OutputModeKey; label: string; desc: string; icon: typeof Clapperboard }[]
+                ).map((m) => (
+                  <button
+                    key={m.key}
+                    onClick={() => patchForm({ outputMode: m.key })}
+                    className={cn(
+                      'flex flex-col items-start rounded-lg border p-2.5 text-left transition-colors',
+                      form.outputMode === m.key
+                        ? 'border-amber-500/60 bg-amber-500/15 text-amber-300'
+                        : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    )}
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-semibold">
+                      <m.icon className="size-3.5" />
+                      {m.label}
+                    </span>
+                    <span className="mt-0.5 text-[10px] opacity-70">{m.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* 创意描述 */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -275,17 +390,18 @@ export function Studio({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-72 border-zinc-800 bg-zinc-900 text-zinc-200">
-                    <SelectItem value="auto">✨ AI 自动决定</SelectItem>
-                    {styleCategories.map((cat) => (
-                      <SelectGroup key={cat}>
-                        <SelectLabel className="text-zinc-500">{cat}</SelectLabel>
-                        {styles
-                          .filter((s) => s.category === cat)
-                          .map((s) => (
-                            <SelectItem key={s.slug} value={s.slug}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
+                    <SelectItem value="auto">✨ AI 自动决定（附选择理由）</SelectItem>
+                    {styleSeries.map((g) => (
+                      <SelectGroup key={g.key}>
+                        <SelectLabel className="text-zinc-500">
+                          {g.label}（{g.items.length}）
+                        </SelectLabel>
+                        {g.items.map((s) => (
+                          <SelectItem key={s.slug} value={s.slug}>
+                            {s.sid ? `${s.sid} · ` : ''}
+                            {s.name}
+                          </SelectItem>
+                        ))}
                       </SelectGroup>
                     ))}
                   </SelectContent>
@@ -409,13 +525,31 @@ export function Studio({
         {/* ===== 右侧结果区 ===== */}
         <div className="min-h-96">
           {generating ? (
-            <LoadingPanel elapsed={elapsed} message={LOADING_MESSAGES[statusIdx]} />
+            <LoadingPanel
+              elapsed={elapsed}
+              message={
+                (form.outputMode === 'taskcard' ? TASKCARD_LOADING_MESSAGES : LOADING_MESSAGES)[
+                  statusIdx
+                ]
+              }
+            />
           ) : current ? (
             <StoryboardResultView
               current={current}
               onCopyMarkdown={copyMarkdown}
               onDownload={downloadMarkdown}
               onCopyAllPrompts={copyAllPrompts}
+            />
+          ) : taskCard ? (
+            <TaskCardView
+              card={taskCard}
+              onCopy={async () => {
+                if (await copyText(taskCard.markdown)) toast.success('任务卡 Markdown 已复制')
+              }}
+              onDownload={() => {
+                downloadTextFile(`任务卡-${taskCard.title || 'untitled'}.md`, taskCard.markdown)
+                toast.success('已下载 .md 文件')
+              }}
             />
           ) : (
             <EmptyPanel onPick={(idea) => patchForm({ idea })} />
@@ -426,10 +560,18 @@ export function Studio({
       {/* ===== 生成历史 ===== */}
       <HistorySection
         history={history}
-        currentId={current?.id}
+        currentId={current?.id ?? taskCard?.id}
         onLoad={(g) => {
+          const card = parseTaskCard(g)
+          if (card) {
+            setCurrent(null)
+            setTaskCard(card)
+            toast.success(`已载入任务卡《${card.title}》`)
+            return
+          }
           const parsed = parseGeneration(g)
           if (parsed) {
+            setTaskCard(null)
             setCurrent(parsed)
             toast.success(`已载入《${parsed.result.title}》`)
           } else {
@@ -583,6 +725,103 @@ export function ResultActions({
         <Sparkles className="size-3.5" />
         复制全部实现 Prompt
       </Button>
+    </div>
+  )
+}
+
+/** fy 任务卡渲染：12 节全案设计文档 */
+function TaskCardView({
+  card,
+  onCopy,
+  onDownload,
+}: {
+  card: CurrentTaskCard
+  onCopy: () => void
+  onDownload: () => void
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/70 px-4 py-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-bold text-zinc-50">
+            <LayoutTemplate className="mr-1.5 inline size-4 text-amber-400" />
+            {card.title}
+          </h3>
+          <p className="mt-0.5 text-[11px] text-zinc-500">
+            fy 任务卡 · 12 节全案设计 · 风格 {card.meta.styleName} ·{' '}
+            {FRAMEWORK_LABELS[card.meta.framework as FrameworkKey] ?? card.meta.framework}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onCopy}
+            className="border-zinc-700 bg-zinc-900/60 text-zinc-200 hover:bg-zinc-800"
+          >
+            <FileText className="size-3.5" />
+            复制 Markdown
+          </Button>
+          <Button
+            size="sm"
+            onClick={onDownload}
+            className="bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+          >
+            <Download className="size-3.5" />
+            下载 .md
+          </Button>
+        </div>
+      </div>
+      <div className="max-h-[72vh] overflow-y-auto scrollbar-thin px-5 py-4">
+        <article className="ff-taskcard">
+          <ReactMarkdown
+            components={{
+              h1: (p) => <h1 className="mb-3 mt-1 text-xl font-bold text-amber-300" {...p} />,
+              h2: (p) => (
+                <h2 className="mb-2 mt-6 border-b border-zinc-800 pb-1.5 text-base font-bold text-zinc-50" {...p} />
+              ),
+              h3: (p) => <h3 className="mb-1.5 mt-4 text-sm font-semibold text-amber-200/90" {...p} />,
+              p: (p) => <p className="my-2 text-[13px] leading-relaxed text-zinc-300" {...p} />,
+              ul: (p) => <ul className="my-2 list-disc space-y-1 pl-5 text-[13px] text-zinc-300" {...p} />,
+              ol: (p) => <ol className="my-2 list-decimal space-y-1 pl-5 text-[13px] text-zinc-300" {...p} />,
+              li: (p) => <li className="leading-relaxed" {...p} />,
+              strong: (p) => <strong className="font-semibold text-zinc-100" {...p} />,
+              blockquote: (p) => (
+                <blockquote
+                  className="my-2 border-l-2 border-amber-500/50 bg-amber-500/5 px-3 py-1.5 text-[13px] text-zinc-300"
+                  {...p}
+                />
+              ),
+              code: (p) => (
+                <code className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-[12px] text-amber-200" {...p} />
+              ),
+              pre: (p) => (
+                <pre
+                  className="my-2 overflow-x-auto scrollbar-thin rounded-lg border border-zinc-800 bg-zinc-950/80 p-3 font-mono text-[12px] leading-relaxed text-zinc-300"
+                  {...p}
+                />
+              ),
+              table: (p) => (
+                <div className="my-3 overflow-x-auto scrollbar-thin">
+                  <table className="w-full border-collapse text-left text-xs" {...p} />
+                </div>
+              ),
+              th: (p) => (
+                <th
+                  className="whitespace-nowrap border-b border-zinc-700 bg-zinc-900/80 px-2.5 py-2 font-semibold text-zinc-200"
+                  {...p}
+                />
+              ),
+              td: (p) => (
+                <td className="border-b border-zinc-800/70 px-2.5 py-2 align-top leading-relaxed text-zinc-400" {...p} />
+              ),
+              hr: () => <hr className="my-4 border-zinc-800" />,
+            }}
+          >
+            {card.markdown}
+          </ReactMarkdown>
+        </article>
+      </div>
     </div>
   )
 }

@@ -26,6 +26,7 @@ export const useAppStore = create<AppState>((set) => ({
     framework: 'hyperframes',
     pacing: 'medium',
     extra: '',
+    outputMode: 'storyboard',
   },
   patchForm: (patch) => set((s) => ({ form: { ...s.form, ...patch } })),
   applyStyle: (slug) => set((s) => ({ tab: 'studio', form: { ...s.form, styleSlug: slug } })),

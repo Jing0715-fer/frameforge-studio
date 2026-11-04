@@ -1,6 +1,6 @@
 // 共享类型定义
 
-export type TabKey = 'styles' | 'prompts' | 'effects' | 'studio'
+export type TabKey = 'styles' | 'prompts' | 'effects' | 'methodology' | 'studio'
 
 export interface StyleItem {
   id: number
@@ -15,6 +15,13 @@ export interface StyleItem {
   difficulty: string
   starterPrompt: string
   createdAt: string
+  // 附件《代码动画》341 风格库扩展
+  series: string // 精选 | AG | M | K | Z | H | L | V | X | R | O
+  sid: string // 附件内原始编号，如 A1 / L36 / O12
+  looksLike: string // 长什么样
+  suitableFor: string // 适合讲什么
+  promptFull: string // 完整风格提示词原文
+  hasStill: boolean // 是否带静帧参考
 }
 
 export interface PromptItem {
@@ -66,6 +73,11 @@ export interface StoryboardShot {
   narration: string
   sfx: string
   prompt: string
+  // fy 方法论增强字段
+  energy?: number // 运动能量 0–5
+  readingWindow?: string // 静读窗说明
+  seamHandoff?: string // 与下一镜的接缝方式
+  emphasisWords?: string // 本镜重点词与力度
 }
 
 export interface StoryboardStyleGuide {
@@ -85,6 +97,17 @@ export interface StoryboardResult {
   shots: StoryboardShot[]
   implementationNotes?: string[]
   checklist?: string[]
+  // fy 方法论增强字段
+  meaningArc?: string // 全文理解：主旨与观众理解变化
+  energyCurve?: string // 节奏与能量曲线说明
+  musicPlans?: string[] // 音乐四案
+}
+
+// ===== 任务卡模式 =====
+
+export interface TaskCardResult {
+  title: string
+  markdown: string // 完整任务卡 Markdown 文档
 }
 
 // ===== 工坊表单 =====
@@ -92,6 +115,7 @@ export interface StoryboardResult {
 export type AspectKey = '16:9' | '9:16' | '1:1'
 export type FrameworkKey = 'hyperframes' | 'remotion' | 'p5js' | 'generic'
 export type PacingKey = 'slow' | 'medium' | 'fast'
+export type OutputModeKey = 'storyboard' | 'taskcard'
 
 export interface StudioFormState {
   idea: string
@@ -102,6 +126,7 @@ export interface StudioFormState {
   framework: FrameworkKey
   pacing: PacingKey
   extra: string
+  outputMode: OutputModeKey // 分镜稿 | 任务卡
 }
 
 export const FRAMEWORK_LABELS: Record<FrameworkKey, string> = {
@@ -117,6 +142,11 @@ export const PACING_LABELS: Record<PacingKey, string> = {
   fast: '快节奏卡点',
 }
 
+export const OUTPUT_MODE_LABELS: Record<OutputModeKey, string> = {
+  storyboard: '分镜稿 · 逐镜实现提示词',
+  taskcard: '任务卡 · fy 全案设计文档',
+}
+
 export const VIDEO_TYPES = [
   '产品发布',
   '品牌宣传片',
@@ -127,3 +157,24 @@ export const VIDEO_TYPES = [
   '歌词卡拉OK',
   '纪录片叙事',
 ] as const
+
+// ===== 风格系列元数据 =====
+export interface SeriesInfo {
+  key: string
+  label: string
+  desc: string
+}
+
+export const STYLE_SERIES: SeriesInfo[] = [
+  { key: '精选', label: '精选详解', desc: '带色板/难度/起始提示词的手工精讲风格' },
+  { key: 'AG', label: 'A–G 代码样片', desc: '字/粒子/线与墨/光与天气/图形与纸/讲解/质感，附参考实现代码' },
+  { key: 'M', label: 'M 动态风格', desc: '整段视频怎么动、怎么剪、怎么讲的结构风格' },
+  { key: 'K', label: 'K 卡通画风', desc: '角色和画面长什么样的卡通画风' },
+  { key: 'Z', label: 'Z 中国风', desc: '水墨、工笔、剪纸、皮影、敦煌、青花、书法…' },
+  { key: 'H', label: 'H 现成版式', desc: '配色加字体的整套现成搭配' },
+  { key: 'L', label: 'L Lemo-Opuscar', desc: 'Lemo-Opuscar 59 种风格，每种有完整做法' },
+  { key: 'V', label: 'V mg-styles-15', desc: 'mg-styles-15 的 15 种 MG 动效风格' },
+  { key: 'X', label: 'X code-video', desc: 'code-video 的 31 种风格' },
+  { key: 'R', label: 'R 照参考学来的', desc: '照参考学着用代码画的赛博朋克等' },
+  { key: 'O', label: 'O 奥斯卡 98 部', desc: '98 部奥斯卡最佳影片，每部一种画风' },
+]

@@ -39,6 +39,14 @@ export function buildStoryboardMarkdown(
   L.push(`**实现框架**：${frameworkLabel}`)
   L.push('')
 
+  if (result.meaningArc || result.energyCurve) {
+    L.push('## 全文理解与节奏')
+    L.push('')
+    if (result.meaningArc) L.push(`- **语义弧线**：${result.meaningArc}`)
+    if (result.energyCurve) L.push(`- **能量曲线**：${result.energyCurve}`)
+    L.push('')
+  }
+
   if (result.styleGuide) {
     L.push('## 视觉风格指南')
     L.push('')
@@ -56,6 +64,12 @@ export function buildStoryboardMarkdown(
     L.push('')
     L.push(result.musicStyle)
     L.push('')
+    if (result.musicPlans?.length) {
+      for (const [i, m] of result.musicPlans.entries()) {
+        L.push(`- **方案 ${String.fromCharCode(65 + i)}**：${m}`)
+      }
+      L.push('')
+    }
   }
 
   L.push(`## 分镜脚本（共 ${result.shots.length} 镜）`)
@@ -69,7 +83,11 @@ export function buildStoryboardMarkdown(
     L.push('')
     if (shot.scene) L.push(`- **画面**：${shot.scene}`)
     if (shot.motion) L.push(`- **动效/运镜**：${shot.motion}`)
+    if (typeof shot.energy === 'number') L.push(`- **运动能量**：${shot.energy}/5`)
     if (shot.transition) L.push(`- **转场**：${shot.transition}`)
+    if (shot.seamHandoff) L.push(`- **接缝（与下一镜）**：${shot.seamHandoff}`)
+    if (shot.readingWindow) L.push(`- **阅读窗**：${shot.readingWindow}`)
+    if (shot.emphasisWords) L.push(`- **重点词**：${shot.emphasisWords}`)
     if (shot.caption) L.push(`- **字幕**：${shot.caption}`)
     if (shot.narration) L.push(`- **旁白**：${shot.narration}`)
     if (shot.sfx) L.push(`- **音效**：${shot.sfx}`)
@@ -99,7 +117,7 @@ export function buildStoryboardMarkdown(
   }
 
   L.push('---')
-  L.push('由 FrameForge 分镜工坊生成 · 灵感源自 14 个开源视频项目')
+  L.push('由 FrameForge 分镜工坊生成 · 融汇 15 个开源项目 + 341 风格库附件 + fy-code-animation 方法论')
   return L.join('\n')
 }
 

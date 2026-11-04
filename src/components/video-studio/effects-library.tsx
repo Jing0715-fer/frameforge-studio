@@ -13,11 +13,16 @@ import { getRepo } from '@/lib/repos'
 import type { EffectItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-export const EFFECT_CATEGORIES = ['运镜', '转场', '文字动效', '节奏', '视觉效果']
+export const EFFECT_CATEGORIES = ['运镜', '转场', '文字动效', '节奏', '视觉效果', '代码样片']
 
 export function EffectsLibrary({ effects }: { effects: EffectItem[] }) {
   const [category, setCategory] = useState('全部')
   const [q, setQ] = useState('')
+
+  const categories = useMemo(
+    () => Array.from(new Set([...EFFECT_CATEGORIES, ...effects.map((e) => e.category)])),
+    [effects]
+  )
 
   const counts = useMemo(() => {
     const m: Record<string, number> = { 全部: effects.length }
@@ -40,7 +45,8 @@ export function EffectsLibrary({ effects }: { effects: EffectItem[] }) {
         <h2 className="text-xl font-bold text-zinc-50">动效预设库</h2>
         <p className="mt-1 text-sm text-zinc-500">
           {effects.length} 个可复用动效 · 沉淀自 mg-styles-15 / huashu-art-motion /
-          remotion-skills 等项目，每个动效附「实时演示 + 代码片段 + 实现 Prompt」
+          remotion-skills / fy-code-animation 转场镜头配方 / 附件 A–G 代码样片（Canvas
+          参考实现），每个动效附「实时演示 + 代码片段 + 实现 Prompt」
         </p>
       </div>
 
@@ -56,7 +62,7 @@ export function EffectsLibrary({ effects }: { effects: EffectItem[] }) {
           />
         </div>
         <CategoryChips
-          categories={EFFECT_CATEGORIES}
+          categories={categories}
           value={category}
           onChange={setCategory}
           counts={counts}
@@ -116,12 +122,12 @@ function EffectCard({ effect }: { effect: EffectItem }) {
           </div>
         )}
 
-        <div className="mt-3 flex items-center justify-between border-t border-zinc-800/80 pt-3">
-          <span className="flex max-w-32 items-center gap-1 text-[10px] text-zinc-600">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 pt-3">
+          <span className="flex min-w-0 max-w-28 items-center gap-1 text-[10px] text-zinc-600 sm:max-w-32">
             <Github className="size-3 shrink-0" />
             <span className="truncate">{repo?.name ?? effect.sourceRepo}</span>
           </span>
-          <div className="flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="sm"

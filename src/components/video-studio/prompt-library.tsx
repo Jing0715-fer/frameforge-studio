@@ -21,6 +21,8 @@ export const PROMPT_CATEGORIES = [
   '长提示词',
   '分镜脚本',
   '技术实现',
+  '方法论 · fy 创作法',
+  '仓库精华',
 ]
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -30,6 +32,8 @@ const CATEGORY_STYLES: Record<string, string> = {
   长提示词: 'border-violet-500/40 bg-violet-500/10 text-violet-400',
   分镜脚本: 'border-teal-500/40 bg-teal-500/10 text-teal-400',
   技术实现: 'border-zinc-600 bg-zinc-800/60 text-zinc-300',
+  '方法论 · fy 创作法': 'border-orange-500/40 bg-orange-500/10 text-orange-400',
+  仓库精华: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
 }
 
 export function PromptLibrary({
@@ -78,7 +82,8 @@ export function PromptLibrary({
           <h2 className="text-xl font-bold text-zinc-50">Prompt 提示词库</h2>
           <p className="mt-1 text-sm text-zinc-500">
             {prompts.length} 条精选提示词 · 精选自 awesome-opus5-5-videos / opus-video-prompts /
-            shipvideo 等项目，按「一句话 / 模板 / 参考图 / 长提示词」分类
+            shipvideo 等项目 + fy-code-animation 方法论模板，按「一句话 / 模板 / 参考图 /
+            长提示词 / 方法论 / 仓库精华」分类
           </p>
         </div>
         <Button
@@ -202,18 +207,18 @@ function PromptCard({
             ))}
         </div>
 
-        <div className="mt-3 flex items-center justify-between border-t border-zinc-800/80 pt-3">
-          <div className="flex items-center gap-3 text-[11px] text-zinc-600">
-            <span className="flex items-center gap-1" title={`已被复制 ${prompt.copyCount} 次`}>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800/80 pt-3">
+          <div className="flex min-w-0 items-center gap-3 text-[11px] text-zinc-600">
+            <span className="flex shrink-0 items-center gap-1" title={`已被复制 ${prompt.copyCount} 次`}>
               <Copy className="size-3" />
               {prompt.copyCount} 次
             </span>
-            <span className="flex max-w-36 items-center gap-1">
+            <span className="flex min-w-0 max-w-28 items-center gap-1 sm:max-w-36">
               <Github className="size-3 shrink-0" />
               <span className="truncate">{repo?.name ?? prompt.sourceRepo}</span>
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="sm"

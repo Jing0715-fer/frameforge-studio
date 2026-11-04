@@ -10,6 +10,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'styles', label: '风格素材库' },
   { key: 'prompts', label: 'Prompt 库' },
   { key: 'effects', label: '动效库' },
+  { key: 'methodology', label: '创作方法论' },
   { key: 'studio', label: 'AI 分镜工坊' },
 ]
 

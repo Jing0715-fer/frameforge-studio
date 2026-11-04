@@ -7,6 +7,8 @@ import {
   ChevronDown,
   Clock,
   CornerDownRight,
+  Gauge,
+  Link2,
   ListChecks,
   Mic,
   MonitorSmartphone,
@@ -14,8 +16,10 @@ import {
   Palette,
   Sparkles,
   Terminal,
+  Timer,
   Volume2,
   Wand2,
+  Zap,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -79,6 +83,56 @@ export function StoryboardResultView({
             />
           </div>
 
+          {(result.meaningArc || result.energyCurve) && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {result.meaningArc && (
+                <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400">
+                    <Sparkles className="size-3 text-amber-400/80" />
+                    全文理解 · 语义弧线
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">{result.meaningArc}</p>
+                </div>
+              )}
+              {result.energyCurve && (
+                <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-3">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400">
+                    <Gauge className="size-3 text-amber-400/80" />
+                    节奏与能量曲线
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">{result.energyCurve}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 能量条形图 */}
+          {result.shots.some((s) => typeof s.energy === 'number') && (
+            <div className="mt-4">
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
+                <Zap className="size-3 text-amber-400/80" />
+                逐镜能量分布（蓄势 → 释放 → 安静）
+              </div>
+              <div className="flex h-12 items-end gap-1" role="img" aria-label="逐镜运动能量分布">
+                {result.shots.map((s, i) => {
+                  const e = typeof s.energy === 'number' ? s.energy : 3
+                  return (
+                    <div
+                      key={i}
+                      className="group relative flex-1 rounded-t-sm bg-gradient-to-t from-amber-600/70 to-amber-400/90 transition-all hover:from-amber-500 hover:to-amber-300"
+                      style={{ height: `${Math.max(12, (e / 5) * 100)}%` }}
+                      title={`镜 ${s.index}：能量 ${e}/5 · ${formatTC(s.start)}-${formatTC(s.end)}`}
+                    />
+                  )
+                })}
+              </div>
+              <div className="mt-1 flex justify-between font-mono text-[9px] text-zinc-600">
+                <span>{formatTC(0)}</span>
+                <span>{formatTC(totalSec)}</span>
+              </div>
+            </div>
+          )}
+
           {(result.styleGuide || result.musicStyle) && (
             <>
               <Separator className="my-5 bg-zinc-800/80" />
@@ -129,6 +183,16 @@ export function StoryboardResultView({
                     <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
                       {result.musicStyle}
                     </p>
+                    {result.musicPlans?.length ? (
+                      <ul className="mt-2.5 space-y-1.5 border-t border-zinc-800/70 pt-2.5">
+                        {result.musicPlans.map((m, i) => (
+                          <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed text-zinc-400">
+                            <span className="shrink-0 font-mono text-amber-400/70">{String.fromCharCode(65 + i)}</span>
+                            {m}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -239,6 +303,16 @@ function ShotCard({ shot, index }: { shot: StoryboardShot; index: number }) {
             <Badge variant="outline" className="border-zinc-700 text-[11px] text-zinc-300">
               {shot.shotSize}
             </Badge>
+            {typeof shot.energy === 'number' && (
+              <Badge
+                variant="outline"
+                className="border-amber-500/30 text-[11px] font-normal text-amber-300/90"
+                title="运动能量"
+              >
+                <Zap className="mr-1 size-3" />
+                {shot.energy}/5
+              </Badge>
+            )}
             {shot.transition && (
               <span className="flex items-center gap-1 text-[11px] text-zinc-500">
                 <CornerDownRight className="size-3" />
@@ -246,6 +320,29 @@ function ShotCard({ shot, index }: { shot: StoryboardShot; index: number }) {
               </span>
             )}
           </div>
+
+          {(shot.readingWindow || shot.seamHandoff || shot.emphasisWords) && (
+            <div className="mt-2.5 grid gap-1.5 text-[11px] leading-relaxed sm:grid-cols-3">
+              {shot.readingWindow && (
+                <p className="flex gap-1.5 rounded-md bg-zinc-950/50 px-2 py-1.5 text-zinc-400">
+                  <Timer className="mt-0.5 size-3 shrink-0 text-emerald-400/70" />
+                  {shot.readingWindow}
+                </p>
+              )}
+              {shot.seamHandoff && (
+                <p className="flex gap-1.5 rounded-md bg-zinc-950/50 px-2 py-1.5 text-zinc-400">
+                  <Link2 className="mt-0.5 size-3 shrink-0 text-sky-400/70" />
+                  {shot.seamHandoff}
+                </p>
+              )}
+              {shot.emphasisWords && (
+                <p className="flex gap-1.5 rounded-md bg-zinc-950/50 px-2 py-1.5 text-zinc-400">
+                  <Sparkles className="mt-0.5 size-3 shrink-0 text-rose-400/70" />
+                  {shot.emphasisWords}
+                </p>
+              )}
+            </div>
+          )}
 
           {shot.scene && (
             <div className="mt-3">

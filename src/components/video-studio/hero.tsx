@@ -14,7 +14,7 @@ export function Hero({ stats }: { stats: HeroStats }) {
   const setTab = useAppStore((s) => s.setTab)
 
   const statItems = [
-    { icon: Githublike, value: '14', label: '源开源项目' },
+    { icon: Githublike, value: '15+1', label: '源开源项目/附件' },
     { icon: Palette, value: String(stats.styles), label: '影片风格' },
     { icon: Lightbulb, value: String(stats.prompts), label: '精选提示词' },
     { icon: Wand2, value: String(stats.effects), label: '动效预设' },
@@ -33,7 +33,7 @@ export function Hero({ stats }: { stats: HeroStats }) {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
             <Sparkles className="size-3.5" />
-            灵感汇聚自 14 个开源视频项目 · Hyperframes / Remotion / lemo-opuscar …
+            融汇 15 个开源项目 + 341 风格库附件 + fy-code-animation 方法论
           </div>
           <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight text-zinc-50 sm:text-5xl">
             从一句话，
@@ -45,8 +45,9 @@ export function Hero({ stats }: { stats: HeroStats }) {
             的分镜稿
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-zinc-400">
-            风格素材库 × Prompt 库 × 动效预设库三位一体。AI
-            导演根据你的需求产出逐镜头分镜脚本、动效规格与实现提示词，
+            风格素材库 × Prompt 库 × 动效预设库 × 创作方法论四位一体。AI
+            导演按 fy 语义分镜方法产出逐镜头分镜稿或 12
+            节任务卡，含动效规格与实现提示词，
             直接驱动 Claude Code + Hyperframes / Remotion / p5.js 出片。
           </p>
 

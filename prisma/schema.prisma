@@ -7,27 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 影片风格素材（灵感来自 lemo-opuscar 66 种风格 / huashu-art-motion 35 种艺术风格 / mg-styles-15 等）
+// 影片风格素材
+// 精选详解：灵感来自 lemo-opuscar / huashu-art-motion / mg-styles-15 等 14 个开源项目（自带色板/难度/起始提示词）
+// 系列风格：来自《代码动画》341 风格库附件（A-G 代码样片 / M 动态 / K 卡通 / Z 中国风 / H 版式 / L Lemo / V mg / X code-video / R 参考 / O 奥斯卡），带完整提示词原文
 model Style {
   id            Int      @id @default(autoincrement())
   slug          String   @unique
   name          String
-  nameEn        String
-  category      String // 电影质感 | 艺术风格 | 手绘动画 | MG 动效 | 三维立体 | 复古怀旧 | 版式文字
-  description   String
-  tags          String // 逗号分隔
-  palette       String // 逗号分隔 hex 色板
+  nameEn        String   @default("")
+  category      String // 系列（精选详解 / A–G 代码样片 / M 动态风格 / … / O 奥斯卡 98 部）
+  description   String // 一句话描述（长什么样）
+  tags          String // 逗号分隔（关键词）
+  palette       String // 逗号分隔 hex 色板（精选风格）
   sourceRepo    String
-  difficulty    String // 入门 | 进阶 | 专业
-  starterPrompt String
+  difficulty    String // 入门 | 进阶 | 专业 | ""
+  starterPrompt String // 起始提示词（附件风格为提示词节选）
   createdAt     DateTime @default(now())
+
+  series        String   @default("") // 精选 | AG | M | K | Z | H | L | V | X | R | O
+  sid           String   @default("") // 附件内的原始编号，如 A1 / L36 / O12
+  looksLike     String   @default("") // 长什么样（附件元数据）
+  suitableFor   String   @default("") // 适合讲什么（附件元数据）
+  promptFull    String   @default("") // 完整风格提示词原文（AI 生成分镜时注入）
+  hasStill      Boolean  @default(false) // 是否带静帧参考
 }
 
-// 精选提示词（灵感来自 awesome-opus5-5-videos 703 条提示词 / opus-video-prompts 中文案例库）
+// 精选提示词（灵感来自 awesome-opus5-5-videos 703 条提示词 / opus-video-prompts 中文案例库 / fy-code-animation 方法论）
 model Prompt {
   id         Int      @id @default(autoincrement())
   title      String
-  category   String // 一句话灵感 | 完整模板 | 参考图驱动 | 长提示词 | 分镜脚本 | 技术实现
+  category   String // 一句话灵感 | 完整模板 | 参考图驱动 | 长提示词 | 分镜脚本 | 技术实现 | 方法论 · fy 创作法 | 仓库精华
   content    String
   tags       String // 逗号分隔
   sourceRepo String
@@ -36,12 +45,12 @@ model Prompt {
   createdAt  DateTime @default(now())
 }
 
-// 动效预设（灵感来自 mg-styles-15 / huashu-art-motion 动效语法 / remotion-skills）
+// 动效预设（灵感来自 mg-styles-15 / A-G 代码样片参考实现 / fy-code-animation 转场与镜头配方）
 model Effect {
   id          Int    @id @default(autoincrement())
   name        String
   nameEn      String
-  category    String // 运镜 | 转场 | 文字动效 | 节奏 | 视觉效果
+  category    String // 运镜 | 转场 | 文字动效 | 节奏 | 视觉效果 | 代码样片
   description String
   codeSnippet String
   prompt      String
@@ -49,7 +58,7 @@ model Effect {
   demo        String // 前端 CSS 演示动画 key
 }
 
-// AI 生成的分镜稿历史
+// AI 生成的分镜稿/任务卡历史
 model Generation {
   id         Int      @id @default(autoincrement())
   title      String

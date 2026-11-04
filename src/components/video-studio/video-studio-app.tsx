@@ -7,6 +7,7 @@ import { SiteFooter } from './site-footer'
 import { StylesLibrary } from './styles-library'
 import { PromptLibrary } from './prompt-library'
 import { EffectsLibrary } from './effects-library'
+import { MethodologyGuide } from './methodology-guide'
 import { Studio } from './studio'
 import { useAppStore } from '@/lib/store'
 import type { EffectItem, GenerationRecord, PromptItem, StyleItem } from '@/lib/types'
@@ -59,6 +60,7 @@ export function VideoStudioApp({
             <PromptLibrary prompts={prompts} onCopyCountChange={bumpCopyCount} />
           )}
           {tab === 'effects' && <EffectsLibrary effects={initialEffects} />}
+          {tab === 'methodology' && <MethodologyGuide />}
           {tab === 'studio' && (
             <Studio
               styles={initialStyles}
