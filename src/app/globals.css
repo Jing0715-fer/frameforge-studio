@@ -538,6 +538,8 @@
 @keyframes ff-train-move { from { offset-distance: 0%; } to { offset-distance: 100%; } }
 @keyframes ff-heartbeat { 0%,100% { transform: scale(1); } 14% { transform: scale(1.25); } 28% { transform: scale(1); } 42% { transform: scale(1.18); } }
 @keyframes ff-zoom-slow { from { transform: scale(1); } to { transform: scale(1.25); } }
+@keyframes ff-pan { 0%,100% { transform: translateX(-4%); } 50% { transform: translateX(4%); } }
+@keyframes ff-twinkle { 0%,100% { opacity: 0.15; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .ff-scene *, .ff-scene { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; }
 }

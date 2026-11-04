@@ -1,8 +1,9 @@
 'use client'
 
 // 风格小样预览：为 369 种风格渲染专属 CSS 动画小样
+// 三维差异化：motif（动画引擎）/ v（构图变体）/ t（质感叠层），告别“只换色”的重复观感
 // 颜色 c[0]=背景 c[1]=主色 c[2]=次色 c[3]=点缀
-import { resolvePreview, type MotifKey } from '@/lib/style-preview-registry'
+import { resolvePreview, type MotifKey, type TextureKey } from '@/lib/style-preview-registry'
 import type { StyleItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -12,6 +13,7 @@ const A = (name: string, dur = '3s', ease = 'ease-in-out', delay = '0s', iter = 
 interface SceneProps {
   c: string[]
   name: string
+  v?: number // 构图变体索引（同 motif 内的不同构图，非换色）
 }
 
 /* ============================ 文字 / 数字 ============================ */
@@ -169,7 +171,56 @@ function ScatterScene({ c, name }: SceneProps) {
   )
 }
 
-function KineticBlocksScene({ c, name }: SceneProps) {
+function KineticBlocksScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 琴键律动：均衡器跳动色条 + 大字压顶
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: c[0] }} />
+        <div className="absolute left-1/2 top-[14%] -translate-x-1/2 font-black tracking-tight" style={{ color: c[1], fontSize: '10cqw', animation: A('ff-appear-up', '0.9s', 'cubic-bezier(.2,1.2,.4,1)', '0.1s', '1 both') }}>
+          {name.slice(0, 4)}
+        </div>
+        <div className="absolute inset-x-[8%] bottom-[14%] flex h-[36%] items-end justify-between gap-[1.2cqw]">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex-1 rounded-t-[0.6cqw]"
+              style={{
+                height: `${34 + ((i * 29) % 60)}%`,
+                background: i % 3 === 0 ? c[3] : i % 3 === 1 ? c[1] : c[2],
+                transformOrigin: 'bottom',
+                animation: A('ff-equal', `${0.7 + (i % 5) * 0.22}s`, 'ease-in-out', `${i * 0.09}s`),
+              }}
+            />
+          ))}
+        </div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 滑动拼版：交替方向滑入的整幅色版 + 缓慢浮动
+    return (
+      <div className="absolute inset-0 overflow-hidden" style={{ background: c[0] }}>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="absolute inset-x-0 flex items-center"
+            style={{
+              top: `${i * 33.4}%`,
+              height: '33.4%',
+              background: [c[1], c[2], c[3]][i],
+              animation: `${A('ff-grow-h', '0.9s', 'cubic-bezier(.2,1,.4,1)', `${i * 0.28}s`, '1 both')}, ${A('ff-float', `${3 + i}s`, 'ease-in-out', `${i * 0.5}s`)}`,
+              transformOrigin: i % 2 ? 'right' : 'left',
+            }}
+          >
+            <span className="px-[4cqw] font-black" style={{ color: c[0], fontSize: '7cqw', letterSpacing: '0.2cqw' }}>
+              {name.slice(i * 2, i * 2 + 2) || '··'}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
   const rows = [
     { dir: 'normal', color: c[1], y: 26, h: 13 },
     { dir: 'reverse', color: c[3], y: 44, h: 13 },
@@ -245,8 +296,71 @@ function SplitFlapScene({ c, name }: SceneProps) {
   )
 }
 
-function NeonSignScene({ c, name }: SceneProps) {
+function NeonSignScene({ c, name, v = 0 }: SceneProps) {
   const t = name.slice(0, 5)
+  if (v === 1) {
+    // 霓虹城市线稿：楼群描边发光 + 地面反光带
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[0]}dd 72%, ${c[0]})` }} />
+        <svg viewBox="0 0 100 60" className="absolute inset-x-0 top-[16%] h-[44%] w-full">
+          <g style={{ filter: `drop-shadow(0 0 1.2cqw ${c[1]})` }}>
+            <path
+              d="M8 44 V22 h8 v-6 h6 V44 M30 44 V14 h10 v10 h6 V44 M56 44 V26 h6 v-8 h8 v26 M78 44 V18 h4 v14 h8 V44"
+              fill="none"
+              stroke={c[1]}
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+              style={{ animation: A('ff-flicker', '5s', 'linear') }}
+            />
+          </g>
+          <g style={{ filter: `drop-shadow(0 0 1cqw ${c[2]})`, animation: A('ff-flicker', '3.6s', 'linear', '0.8s') }}>
+            <path d="M14 30 h6 M34 22 h5 M61 32 h7 M82 26 h5" stroke={c[2]} strokeWidth="1.6" strokeLinecap="round" />
+          </g>
+        </svg>
+        <div className="absolute inset-x-0 top-[60%] h-[26%] opacity-40" style={{ background: `repeating-linear-gradient(90deg, ${c[1]}44 0 4cqw, transparent 4cqw 7cqw)`, filter: 'blur(0.8cqw)' }} />
+        <div className="absolute bottom-[8%] left-1/2 -translate-x-1/2 font-mono tracking-[0.4cqw]" style={{ color: c[3], fontSize: '3.4cqw', textShadow: `0 0 1.6cqw ${c[3]}` }}>
+          {name.slice(0, 6)}
+        </div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 霓虹灯管：连续弯管字形 + 分段闪烁 + 末端亮点
+    return (
+      <div className="absolute inset-0 flex items-center justify-center" style={{ background: `radial-gradient(70% 90% at 50% 60%, ${c[0]}, #05050a)` }}>
+        <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full">
+          <path
+            d="M18 40 h16 a 10 10 0 0 0 0 -20 h-6 a 7 7 0 0 0 0 14"
+            fill="none"
+            stroke={c[1]}
+            strokeWidth="2"
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 1.4cqw ${c[1]})`, animation: A('ff-flicker', '4.4s', 'linear') }}
+          />
+          <path
+            d="M52 20 v20 a 8 8 0 0 0 14 0 V24 h6"
+            fill="none"
+            stroke={c[2]}
+            strokeWidth="2"
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 1.4cqw ${c[2]})`, animation: A('ff-flicker', '3s', 'linear', '0.6s') }}
+          />
+          <path
+            d="M80 34 q 4 -10 8 0 t 8 0"
+            fill="none"
+            stroke={c[3]}
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 1cqw ${c[3]})`, animation: A('ff-blink', '1.8s', 'steps(1)') }}
+          />
+        </svg>
+        <span className="absolute bottom-[12%] font-mono" style={{ color: c[3], fontSize: '3.2cqw', textShadow: `0 0 1.4cqw ${c[3]}`, animation: A('ff-blink', '1.2s', 'steps(1)') }}>
+          {name.slice(0, 5)}
+        </span>
+      </div>
+    )
+  }
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div
@@ -682,7 +796,162 @@ function RainGlassScene({ c }: SceneProps) {
   )
 }
 
-function DawnSkyScene({ c }: SceneProps) {
+function DawnSkyScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 星空夜幕：渐变夜空 + 闪烁星点 + 月牙 + 银河斜带
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[1]}66 70%, ${c[1]})` }} />
+        <div className="absolute inset-0 opacity-25" style={{ background: `linear-gradient(120deg, transparent 30%, ${c[2]}44 50%, transparent 70%)`, filter: 'blur(2cqw)' }} />
+        {Array.from({ length: 14 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              left: `${(i * 37 + 7) % 94}%`,
+              top: `${(i * 23 + 5) % 62}%`,
+              width: `${0.8 + (i % 3) * 0.4}cqw`,
+              height: `${0.8 + (i % 3) * 0.4}cqw`,
+              background: c[2],
+              boxShadow: `0 0 1cqw ${c[2]}`,
+              animation: A('ff-twinkle', `${1.6 + (i % 5) * 0.7}s`, 'ease-in-out', `${i * 0.23}s`),
+            }}
+          />
+        ))}
+        <div className="absolute right-[18%] top-[14%] size-[12cqw] rounded-full" style={{ background: c[2], boxShadow: `0 0 4cqw ${c[2]}66` }} />
+        <div className="absolute right-[18%] top-[14%] size-[12cqw] translate-x-[3cqw] -translate-y-[1cqw] rounded-full" style={{ background: c[0] }} />
+        <div className="absolute inset-x-0 bottom-0 h-[16%]" style={{ background: `linear-gradient(180deg, transparent, ${c[0]})` }} />
+        <div className="absolute left-[8%] top-[10%] font-serif italic" style={{ color: `${c[2]}aa`, fontSize: '3.4cqw' }}>
+          {name.slice(0, 4)}
+        </div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 云层视差：三层圆角云带不同速度漂移 + 藏在云后的落日
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[1]}88)` }} />
+        <div className="absolute left-[30%] top-[18%] size-[18cqw] rounded-full" style={{ background: `radial-gradient(circle, ${c[2]}, ${c[1]})`, boxShadow: `0 0 7cqw ${c[2]}88`, animation: A('ff-float', '7s') }} />
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="absolute left-0"
+            style={{ top: `${28 + i * 16}%`, width: '200%', height: `${5 + i * 2}cqw`, animation: A('ff-marquee', `${14 + i * 9}s`, 'linear') }}
+          >
+            {[0, 1].map((k) => (
+              <div
+                key={k}
+                className="absolute rounded-full"
+                style={{
+                  left: `${k * 50}%`,
+                  top: 0,
+                  width: '50%',
+                  height: '100%',
+                  background: `linear-gradient(90deg, transparent, ${i === 1 ? c[3] : c[2]}cc 30%, ${i === 1 ? c[3] : c[2]}cc 70%, transparent)`,
+                  filter: 'blur(0.6cqw)',
+                  opacity: 0.75 - i * 0.2,
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </>
+    )
+  }
+  if (v === 3) {
+    // 丁达尔光束：顶部斜射光柱旋转 + 尘埃微粒上浮
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[1]}55, ${c[0]} 65%)` }} />
+        <div
+          className="absolute -top-[30%] left-[10%] h-[160%] w-[140%] origin-top"
+          style={{ background: `repeating-conic-gradient(from 150deg at 30% 0%, ${c[2]}26 0deg 6deg, transparent 6deg 14deg)`, animation: A('ff-spin', '26s', 'linear') }}
+        />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              left: `${14 + i * 10}%`,
+              bottom: '-4%',
+              width: `${0.9 + (i % 2) * 0.5}cqw`,
+              height: `${0.9 + (i % 2) * 0.5}cqw`,
+              background: c[2],
+              opacity: 0.7,
+              filter: 'blur(0.1cqw)',
+              animation: A('ff-rise', `${5 + (i % 4) * 2}s`, 'linear', `${i * 0.8}s`),
+            }}
+          />
+        ))}
+        <div className="absolute inset-0" style={{ background: `radial-gradient(60% 50% at 30% 0%, ${c[2]}44, transparent)` }} />
+      </>
+    )
+  }
+  if (v === 4) {
+    // 城市天际线黄昏：楼群剪影 + 窗灯此起彼落闪烁
+    const b = [34, 22, 44, 28, 52, 30, 40]
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[1]} 60%, ${c[2]}55)` }} />
+        <div className="absolute left-[62%] top-[10%] size-[11cqw] rounded-full" style={{ background: c[2], boxShadow: `0 0 6cqw ${c[2]}aa`, animation: A('ff-pulse-soft', '5s') }} />
+        <div className="absolute inset-x-0 bottom-0 flex h-[46%] items-end">
+          {b.map((h, i) => (
+            <div
+              key={i}
+              className="relative flex-1"
+              style={{ height: `${h * 1.5}%`, background: c[0], borderTopLeftRadius: i % 3 === 0 ? '1cqw' : 0, borderTopRightRadius: i % 4 === 0 ? '1cqw' : 0 }}
+            >
+              {Array.from({ length: 4 }).map((_, j) => (
+                <div
+                  key={j}
+                  className="absolute"
+                  style={{
+                    left: `${18 + (j % 2) * 40}%`,
+                    top: `${12 + j * 20}%`,
+                    width: '16%',
+                    height: '7%',
+                    background: c[3],
+                    opacity: 0.9,
+                    animation: A('ff-blink', `${2 + (i + j) % 4}s`, 'steps(1)', `${(i * 3 + j) * 0.5}s`),
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+  if (v === 5) {
+    // 海平线粼光：低垂落日 + 波光反射带闪烁
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[1]} 58%)` }} />
+        <div className="absolute left-1/2 top-[30%] size-[13cqw] -translate-x-1/2 rounded-full" style={{ background: `radial-gradient(circle, ${c[3]}, ${c[2]})`, boxShadow: `0 0 8cqw ${c[2]}aa` }} />
+        <div className="absolute inset-x-0 top-[58%] h-[0.5cqw]" style={{ background: `${c[3]}88` }} />
+        <div className="absolute inset-x-0 bottom-0 h-[42%] overflow-hidden" style={{ background: `linear-gradient(180deg, ${c[1]}cc, ${c[0]})` }}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                left: `${42 + (i % 3) * 5}%`,
+                top: `${4 + i * 12}%`,
+                width: `${10 + (i % 3) * 7}cqw`,
+                height: '0.7cqw',
+                background: c[3],
+                opacity: 0.75,
+                filter: 'blur(0.2cqw)',
+                animation: A('ff-twinkle', `${1.8 + (i % 3) * 0.8}s`, 'ease-in-out', `${i * 0.35}s`),
+              }}
+            />
+          ))}
+          <div className="absolute inset-0" style={{ background: `repeating-linear-gradient(180deg, transparent 0 2.4cqw, ${c[2]}22 2.4cqw 2.9cqw)` }} />
+        </div>
+      </>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]} 0%, ${c[1]}55 55%, ${c[1]} 100%)` }} />
@@ -826,7 +1095,48 @@ function InkMountainScene({ c }: SceneProps) {
   )
 }
 
-function OneStrokeScene({ c, name }: SceneProps) {
+function OneStrokeScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 连笔签名：一气呵成的落笔轨迹 + 落款
+    return (
+      <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full">
+        <path
+          d="M10 38 C 14 20, 20 20, 22 32 C 24 44, 30 44, 32 30 C 34 18, 40 16, 44 26 C 47 34, 52 36, 58 30 M58 30 C 66 24, 74 28, 82 22 M58 30 C 62 40, 72 44, 84 40 M12 50 q 34 8 70 -4"
+          fill="none"
+          stroke={c[1]}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeDasharray="330"
+          style={{ animation: A('ff-dash-draw', '4.4s', 'ease-in-out', '0s', 'infinite alternate'), ['--dash' as string]: '330' } as React.CSSProperties}
+        />
+        <circle cx="10" cy="38" r="1.6" fill={c[3]} />
+        <text x="66" y="12" fontSize="5.4" fill={c[3]} fontStyle="italic" fontFamily="serif" style={{ animation: A('ff-appear', '2.2s', 'ease-out', '1.4s', '1 both') }}>
+          {name.slice(0, 2)}
+        </text>
+      </svg>
+    )
+  }
+  if (v === 2) {
+    // 一笔画侧脸：连续轮廓线人像
+    return (
+      <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full">
+        <path
+          d="M66 8 C 48 6, 34 16, 32 30 C 31 37, 28 40, 30 42 C 33 44, 32 46, 30 48 L 34 49 C 33 52, 35 54, 40 54 C 42 58, 48 58, 50 54 C 56 56, 66 56, 70 52 C 76 50, 80 44, 78 36 C 76 28, 76 18, 66 8 Z"
+          fill={`${c[2]}22`}
+          stroke={c[1]}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray="300"
+          style={{ animation: A('ff-dash-draw', '4.8s', 'ease-in-out', '0s', 'infinite alternate'), ['--dash' as string]: '300' } as React.CSSProperties}
+        />
+        <circle cx="52" cy="26" r="1.4" fill={c[3]} style={{ animation: A('ff-pulse-soft', '2.2s') }} />
+        <path d="M44 20 q 6 -3 11 0" fill="none" stroke={c[3]} strokeWidth="1.2" strokeLinecap="round" />
+        <text x="12" y="52" fontSize="5" fill={c[3]} fontStyle="italic" fontFamily="serif">
+          {name.slice(0, 2)}
+        </text>
+      </svg>
+    )
+  }
   return (
     <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full">
       <path
@@ -846,7 +1156,62 @@ function OneStrokeScene({ c, name }: SceneProps) {
   )
 }
 
-function WatercolorScene({ c }: SceneProps) {
+function WatercolorScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 湿画渗色：色带自上而下洇开
+    return (
+      <div className="absolute inset-0" style={{ background: c[0] }}>
+        {[c[1], c[2], c[3]].map((col, i) => (
+          <div key={i} className="absolute top-0" style={{ left: `${12 + i * 30}%`, width: '20%', height: '90%' }}>
+            <div
+              className="absolute inset-x-0 top-0 h-[60%]"
+              style={{
+                background: `linear-gradient(180deg, ${col}99, ${col}44 65%, transparent)`,
+                filter: 'blur(1.2cqw)',
+                mixBlendMode: 'multiply',
+                transformOrigin: 'top',
+                animation: A('ff-grow-v', `${4.5 + i * 1.6}s`, 'ease-in-out', `${i * 1.2}s`, 'infinite alternate'),
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    )
+  }
+  if (v === 2) {
+    // 水彩滴溅：不规则斑点绽开 + 形变呼吸
+    const drops = [
+      { l: 18, t: 22, s: 16, col: c[1], br: '58% 42% 55% 45% / 52% 48% 62% 38%' },
+      { l: 48, t: 38, s: 22, col: c[2], br: '45% 55% 40% 60% / 55% 42% 58% 45%' },
+      { l: 66, t: 16, s: 11, col: c[3], br: '52% 48% 58% 42% / 45% 58% 42% 55%' },
+      { l: 30, t: 60, s: 9, col: c[3], br: '55% 45% 48% 52% / 58% 42% 52% 48%' },
+      { l: 74, t: 56, s: 7, col: c[1], br: '48% 52% 55% 45% / 42% 58% 45% 55%' },
+    ]
+    return (
+      <div className="absolute inset-0" style={{ background: c[0] }}>
+        {drops.map((d, i) => (
+          <div
+            key={i}
+            className="absolute"
+            style={{
+              left: `${d.l}%`,
+              top: `${d.t}%`,
+              width: `${d.s}%`,
+              height: `${d.s * 1.1}%`,
+              background: `radial-gradient(circle at 42% 38%, ${d.col}cc, ${d.col}55 60%, ${d.col}22 82%)`,
+              borderRadius: d.br,
+              filter: 'blur(0.4cqw)',
+              mixBlendMode: 'multiply',
+              animation: A('ff-blob-morph', `${5 + i * 1.4}s`, 'ease-in-out', `${i * 0.5}s`),
+            }}
+          />
+        ))}
+        <div className="absolute bottom-[8%] left-[8%] font-serif italic" style={{ color: `${c[2]}cc`, fontSize: '3.4cqw' }}>
+          {name.slice(0, 4)}
+        </div>
+      </div>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: c[0] }} />
@@ -874,7 +1239,57 @@ function WatercolorScene({ c }: SceneProps) {
   )
 }
 
-function ImpastoScene({ c }: SceneProps) {
+function ImpastoScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 漩涡夜空：厚涂旋涡笔触自绘 + 亮星呼吸
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[1]}33)` }} />
+        <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full">
+          <path
+            d="M10 22 q 12 -12 24 0 t 24 0 t 24 0 t 20 0 M6 32 q 14 -10 26 0 t 26 0 t 24 0 M14 12 q 10 -8 20 0 t 20 0 t 22 0"
+            fill="none"
+            stroke={c[1]}
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeDasharray="180"
+            style={{ animation: A('ff-dash-draw', '5s', 'ease-in-out', '0s', 'infinite alternate'), ['--dash' as string]: '180', filter: `drop-shadow(0 0 0.6cqw ${c[2]}66)` } as React.CSSProperties}
+          />
+          <path d="M0 46 q 20 -8 34 2 q 14 9 32 0 q 18 -8 34 2 L100 60 0 60 Z" fill={c[3]} opacity="0.75" style={{ animation: A('ff-wave-tilt', '7s', 'ease-in-out') }} />
+          <circle cx="78" cy="14" r="2.6" fill={c[2]} style={{ animation: A('ff-pulse-soft', '2.4s') }} />
+          <circle cx="24" cy="10" r="1.6" fill={c[2]} style={{ animation: A('ff-pulse-soft', '3s', '0.8s') }} />
+        </svg>
+        <div className="absolute bottom-[6%] right-[8%] font-serif italic" style={{ color: `${c[2]}aa`, fontSize: '3.2cqw' }}>
+          {name.slice(0, 4)}
+        </div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 调色刀色块：大块斜面叠压 + 缓慢错动
+    const slabs = [
+      { clip: 'polygon(0 0, 74% 0, 40% 46%, 0 30%)', col: c[1], d: 0 },
+      { clip: 'polygon(30% 18%, 100% 8%, 84% 52%, 22% 56%)', col: c[2], d: 0.5 },
+      { clip: 'polygon(0 44%, 58% 40%, 100% 70%, 0 88%)', col: c[3], d: 1 },
+    ]
+    return (
+      <div className="absolute inset-0" style={{ background: c[0] }}>
+        <div className="absolute inset-0 opacity-[0.06]" style={{ background: 'repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 5px)' }} />
+        {slabs.map((s, i) => (
+          <div
+            key={i}
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(${120 + i * 40}deg, ${s.col}, ${s.col}aa)`,
+              clipPath: s.clip,
+              boxShadow: 'inset 0 0 2cqw rgba(0,0,0,.3)',
+              animation: A('ff-wave-tilt', `${8 + i * 2}s`, 'ease-in-out', `${s.d}s`),
+            }}
+          />
+        ))}
+      </div>
+    )
+  }
   const strokes = [
     { w: 46, h: 9, l: 8, t: 30, col: c[1], r: -4 },
     { w: 34, h: 8, l: 38, t: 46, col: c[2], r: 3 },
@@ -1370,7 +1785,91 @@ function BlueprintScene({ c, name }: SceneProps) {
   )
 }
 
-function PixelSpriteScene({ c, name }: SceneProps) {
+function PixelSpriteScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 像素横版卷轴：双层山丘视差滚动 + 8-bit 太阳
+    return (
+      <div className="absolute inset-0 overflow-hidden" style={{ background: c[0] }}>
+        <div className="absolute right-[10%] top-[10%] size-[9cqw]" style={{ background: c[1], boxShadow: `0 0 0 1.6cqw ${c[1]}44`, animation: A('ff-pulse-soft', '4s') }} />
+        <div className="absolute left-0 top-[38%] h-[14%] w-[200%]" style={{ animation: A('ff-marquee', '30s', 'linear') }}>
+          {[0, 1].map((k) => (
+            <div
+              key={k}
+              className="absolute top-0 h-full"
+              style={{
+                left: `${k * 50}%`,
+                width: '50%',
+                background: `repeating-linear-gradient(90deg, ${c[2]} 0 6cqw, ${c[2]}cc 6cqw 12cqw)`,
+                clipPath: 'polygon(0 60%, 8% 30%, 18% 60%, 30% 20%, 42% 55%, 55% 25%, 68% 60%, 80% 35%, 92% 55%, 100% 40%, 100% 100%, 0 100%)',
+              }}
+            />
+          ))}
+        </div>
+        <div className="absolute left-0 top-[58%] h-[14%] w-[200%]" style={{ animation: A('ff-marquee', '18s', 'linear') }}>
+          {[0, 1].map((k) => (
+            <div
+              key={k}
+              className="absolute top-0 h-full"
+              style={{
+                left: `${k * 50}%`,
+                width: '50%',
+                background: `repeating-linear-gradient(90deg, ${c[3]} 0 5cqw, ${c[3]}bb 5cqw 10cqw)`,
+                clipPath: 'polygon(0 50%, 12% 25%, 26% 50%, 40% 15%, 54% 45%, 70% 25%, 86% 50%, 100% 35%, 100% 100%, 0 100%)',
+              }}
+            />
+          ))}
+        </div>
+        <div className="absolute inset-x-0 bottom-0 h-[16%]" style={{ background: `repeating-linear-gradient(90deg, ${c[1]} 0 2cqw, ${c[2]} 2cqw 4cqw)` }} />
+        <div className="absolute left-[6%] top-[6%] font-mono" style={{ color: c[3], fontSize: '3.2cqw' }}>{name.slice(0, 4)}</div>
+      </div>
+    )
+  }
+  if (v === 2) {
+    // 像素道具栏：物品弹入 + 选中格虚线旋转
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-[2.4cqw]" style={{ background: c[0] }}>
+        <div className="font-mono" style={{ color: c[1], fontSize: '4cqw' }}>{name.slice(0, 4)}</div>
+        <div className="flex gap-[2cqw]">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="relative flex size-[13cqw] items-center justify-center border-[0.5cqw]"
+              style={{
+                borderColor: i === 1 ? c[1] : `${c[2]}66`,
+                background: `${c[2]}18`,
+                boxShadow: i === 1 ? `0 0 2cqw ${c[1]}66` : 'none',
+                animation: A('ff-appear', '0.8s', 'cubic-bezier(.2,1.4,.4,1)', `${i * 0.25}s`, '1 both'),
+              }}
+            >
+              {i === 0 && <div className="h-[7cqw] w-[1.6cqw] rotate-45 rounded-[0.2cqw]" style={{ background: c[3], boxShadow: `-2.4cqw 2.4cqw 0 -0.2cqw ${c[3]}` }} />}
+              {i === 1 && (
+                <div className="relative size-[6cqw]">
+                  <div className="absolute left-0 top-0 size-[3cqw] rounded-t-full" style={{ background: c[1] }} />
+                  <div className="absolute right-0 top-0 size-[3cqw] rounded-t-full" style={{ background: c[1] }} />
+                  <div className="absolute inset-x-0 bottom-0 h-[3.4cqw]" style={{ background: c[1], borderRadius: '0 0 0.6cqw 0.6cqw' }} />
+                </div>
+              )}
+              {i === 2 && <div className="size-[6.4cqw]" style={{ background: c[2], clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }} />}
+              {i === 3 && (
+                <div className="flex flex-col items-center">
+                  <div className="h-[2cqw] w-[2cqw]" style={{ background: c[3] }} />
+                  <div className="h-[5cqw] w-[4cqw] rounded-b-[0.6cqw]" style={{ background: c[1] }} />
+                </div>
+              )}
+              {i === 1 && <div className="absolute -inset-[0.9cqw] border-[0.4cqw] border-dashed" style={{ borderColor: c[1], animation: A('ff-spin', '6s', 'linear') }} />}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-[2cqw]">
+          {['HP', 'MP', 'EXP'].map((s, i) => (
+            <div key={s} className="h-[1.8cqw] w-[10cqw] overflow-hidden rounded-full border border-white/25">
+              <div style={{ height: '100%', width: `${80 - i * 22}%`, background: c[3], animation: A('ff-karaoke-wipe', '3s', 'ease-in-out', `${i * 0.4}s`, '1 both') }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
   const heart = [
     [0,1,1,0,0,1,1,0],
     [1,1,1,1,1,1,1,1],
@@ -1448,7 +1947,75 @@ function RpgDialogScene({ c, name }: SceneProps) {
 
 /* ============================ 纸艺 / 手绘 / 板式 ============================ */
 
-function PaperCutScene({ c, name }: SceneProps) {
+function PaperCutScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 纸雕光影盒：嵌套圆窗逐层深入 + 剪影小人
+    const cols = [c[1], c[2], c[3], c[2]]
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: c[0] }} />
+        <div className="absolute inset-0" style={{ background: `radial-gradient(60% 50% at 50% 20%, ${c[3]}33, transparent)` }} />
+        {cols.map((col, i) => (
+          <div
+            key={i}
+            className="absolute rounded-[50%]"
+            style={{
+              inset: `${4 + i * 8}%`,
+              background: col,
+              boxShadow: 'inset 0 0.6cqw 1.2cqw rgba(0,0,0,.35)',
+              animation: A('ff-appear', '1.2s', 'cubic-bezier(.2,1.2,.4,1)', `${i * 0.35}s`, '1 both'),
+            }}
+          />
+        ))}
+        <div className="absolute left-1/2 top-[46%] -translate-x-1/2" style={{ animation: A('ff-float', '4s', 'ease-in-out') }}>
+          <div className="mx-auto size-[4cqw] rounded-full" style={{ background: c[0] }} />
+          <div className="mx-auto mt-[0.4cqw] h-[7cqw] w-[5cqw]" style={{ background: c[0], clipPath: 'polygon(18% 0%, 82% 0%, 100% 100%, 0% 100%)' }} />
+        </div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 窗花团花：十二瓣旋转对称剪纸
+    return (
+      <div className="absolute inset-0 flex items-center justify-center" style={{ background: c[0] }}>
+        <div className="relative size-[74%]" style={{ animation: A('ff-spin', '40s', 'linear') }}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="absolute inset-0" style={{ transform: `rotate(${i * 30}deg)` }}>
+              <div className="absolute left-1/2 top-[4%] h-[30%] w-[13%] -translate-x-1/2" style={{ background: c[1], clipPath: 'polygon(50% 0%, 100% 30%, 82% 100%, 18% 100%, 0% 30%)' }} />
+              <div className="absolute left-1/2 top-[32%] size-[7%] -translate-x-1/2 rounded-[50%]" style={{ background: c[2] }} />
+            </div>
+          ))}
+          <div className="absolute left-1/2 top-1/2 size-[22%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[0.6cqw]" style={{ borderColor: c[3], background: `${c[2]}44` }} />
+        </div>
+        <div className="absolute left-[6%] top-[8%] font-serif" style={{ color: c[1], fontSize: '4cqw', writingMode: 'vertical-rl' }}>{name.slice(0, 2)}</div>
+      </div>
+    )
+  }
+  if (v === 3) {
+    // 纸条编织：横竖交织 + 部分纸条缓慢摆动
+    return (
+      <div className="absolute inset-0 overflow-hidden" style={{ background: c[0] }}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div
+            key={`h${i}`}
+            className="absolute left-0 w-full"
+            style={{
+              top: `${8 + i * 18}%`,
+              height: '9%',
+              background: i % 2 ? c[2] : c[1],
+              opacity: 0.85,
+              boxShadow: '0 0.3cqw 0.8cqw rgba(0,0,0,.25)',
+              animation: i === 1 || i === 3 ? A('ff-wave-tilt', `${5 + i}s`, 'ease-in-out', `${i * 0.4}s`) : undefined,
+            }}
+          />
+        ))}
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={`v${i}`} className="absolute top-0 h-full" style={{ left: `${12 + i * 22}%`, width: '9%', background: i % 2 ? c[3] : c[2], opacity: 0.9, boxShadow: '0.3cqw 0 0.8cqw rgba(0,0,0,.25)' }} />
+        ))}
+        <div className="absolute right-[8%] top-[10%] rounded-[0.5cqw] px-[1.2cqw] py-[0.5cqw] font-serif" style={{ background: c[0], color: c[1], fontSize: '3.6cqw' }}>{name.slice(0, 2)}</div>
+      </div>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: c[0] }} />
@@ -1543,7 +2110,40 @@ function WhiteboardScene({ c, name }: SceneProps) {
   )
 }
 
-function SketchyScene({ c, name }: SceneProps) {
+function SketchyScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 笔记本页：横线 + 红边线 + 手绘涂鸦与重点圈画
+    return (
+      <div className="absolute inset-0" style={{ background: c[0] }}>
+        <div className="absolute inset-0 opacity-50" style={{ background: `repeating-linear-gradient(180deg, transparent 0 3.2cqw, ${c[2]}55 3.2cqw 3.4cqw)` }} />
+        <div className="absolute inset-y-0 left-[14%] w-[0.3cqw]" style={{ background: `${c[3]}99` }} />
+        <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full">
+          <path d="M22 14 q 6 -6 12 0 t 12 0" fill="none" stroke={c[1]} strokeWidth="1.6" strokeLinecap="round" strokeDasharray="0.5 2" style={{ animation: A('ff-jitter', '0.8s', 'linear') }} />
+          <path d="M70 12 l 2.4 5 5.4 0.6 -4 3.8 1 5.4 -4.8 -2.6 -4.8 2.6 1 -5.4 -4 -3.8 5.4 -0.6 z" fill="none" stroke={c[3]} strokeWidth="1.4" strokeLinejoin="round" style={{ animation: A('ff-jitter', '0.9s', 'linear', '0.2s') }} />
+          <path d="M24 30 C 34 18, 52 18, 62 30 S 78 40, 66 44 S 34 46, 24 30" fill="none" stroke={c[1]} strokeWidth="1.4" strokeLinecap="round" strokeDasharray="0.5 2.4" style={{ animation: A('ff-dash-draw', '3.6s', 'ease-in-out', '0s', 'infinite alternate'), ['--dash' as string]: '130' } as React.CSSProperties} />
+          <path d="M78 36 l 10 -8 M88 28 l -1 5 M88 28 l -5 -1" fill="none" stroke={c[3]} strokeWidth="1.3" strokeLinecap="round" style={{ animation: A('ff-appear', '1.6s', 'ease-out', '0.4s', '1 both') }} />
+          <text x="24" y="55" fontSize="5.4" fill={c[1]} fontFamily="sans-serif" fontWeight="600" style={{ animation: A('ff-jitter', '1.1s', 'linear', '0.1s') }}>
+            {name.slice(0, 6)}
+          </text>
+        </svg>
+      </div>
+    )
+  }
+  if (v === 2) {
+    // 结构制图：虚线辅助线 + 扇形逐步成形
+    return (
+      <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full" style={{ background: c[0] }}>
+        <line x1="50" y1="4" x2="50" y2="56" stroke={`${c[2]}66`} strokeWidth="0.5" strokeDasharray="2 2" />
+        <line x1="6" y1="30" x2="94" y2="30" stroke={`${c[2]}66`} strokeWidth="0.5" strokeDasharray="2 2" />
+        <circle cx="50" cy="30" r="18" fill="none" stroke={`${c[2]}88`} strokeWidth="0.7" strokeDasharray="3 2" />
+        <path d="M50 12 a 18 18 0 0 1 18 18 l -18 0 z" fill={`${c[1]}55`} stroke={c[1]} strokeWidth="1.2" style={{ animation: A('ff-appear', '1.4s', 'ease-out', '0.6s', '1 both') }} />
+        <path d="M50 30 a 18 18 0 0 1 -18 18 l 0 -18 z" fill={`${c[3]}44`} stroke={c[3]} strokeWidth="1.2" style={{ animation: A('ff-appear', '1.4s', 'ease-out', '1.2s', '1 both') }} />
+        <circle cx="50" cy="30" r="1.4" fill={c[3]} style={{ animation: A('ff-pulse-soft', '2s') }} />
+        <path d="M50 30 L 78 12 M50 30 L 74 44" stroke={c[2]} strokeWidth="0.7" strokeDasharray="1.5 1.5" style={{ animation: A('ff-dash-draw', '2.4s', 'linear'), ['--dash' as string]: '60' } as React.CSSProperties} />
+        <text x="8" y="12" fontSize="4.4" fill={c[1]} fontFamily="monospace">{name.slice(0, 4)}</text>
+      </svg>
+    )
+  }
   return (
     <svg viewBox="0 0 100 60" className="absolute inset-0 h-full w-full">
       <path
@@ -1601,7 +2201,59 @@ function EngravingScene({ c, name }: SceneProps) {
   )
 }
 
-function HalftonePopScene({ c, name }: SceneProps) {
+function HalftonePopScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 漫画分格：斜切双格 + 网点 + 拟声词爆炸框
+    return (
+      <div className="absolute inset-0" style={{ background: c[0] }}>
+        <div className="absolute inset-[5%] overflow-hidden rounded-[1cqw] border-[0.6cqw] border-black">
+          <div className="absolute inset-0" style={{ background: c[2], clipPath: 'polygon(0 0, 100% 0, 55% 100%, 0 100%)' }} />
+          <div className="absolute inset-0 opacity-30" style={{ color: c[1] }}>
+            <div className="ff-halftone-dots absolute inset-0" style={{ backgroundSize: '1.6cqw 1.6cqw' }} />
+          </div>
+          <div className="absolute left-[8%] top-[16%] font-black italic" style={{ color: c[0], fontSize: '8cqw', WebkitTextStroke: `0.3cqw ${c[0]}` }}>
+            {name.slice(0, 3)}
+          </div>
+          <div
+            className="absolute bottom-[10%] right-[8%] flex h-[12cqw] w-[22cqw] -rotate-6 items-center justify-center font-black italic text-white"
+            style={{ background: c[1], clipPath: 'polygon(4% 0%, 96% 8%, 100% 92%, 52% 100%, 0% 88%)', boxShadow: '0.4cqw 0.4cqw 0 rgba(0,0,0,.8)', fontSize: '5cqw', animation: A('ff-jitter', '0.5s', 'linear') }}
+          >
+            {name.slice(3, 6) || 'POW!'}
+          </div>
+        </div>
+      </div>
+    )
+  }
+  if (v === 2) {
+    // 套印错位：三色层错动抖动 + 网点底纹
+    const layers = [
+      { col: c[1], dx: -1.2, dy: -0.8, anim: 'ff-glitch-x' },
+      { col: c[2], dx: 1.4, dy: 0.6, anim: 'ff-glitch-x' },
+      { col: c[3], dx: 0, dy: 1.4, anim: 'ff-jitter' },
+    ]
+    return (
+      <div className="absolute inset-0 flex items-center justify-center" style={{ background: c[0] }}>
+        <div className="absolute inset-0 opacity-20" style={{ color: c[2] }}>
+          <div className="ff-halftone-dots absolute inset-0" />
+        </div>
+        {layers.map((l, i) => (
+          <span
+            key={i}
+            className="absolute font-black"
+            style={{
+              color: `${l.col}bb`,
+              fontSize: '15cqw',
+              mixBlendMode: 'screen',
+              transform: `translate(${l.dx}cqw, ${l.dy}cqw)`,
+              animation: A(l.anim, `${1.2 + i * 0.5}s`, 'linear', `${i * 0.3}s`),
+            }}
+          >
+            {name.slice(0, 3)}
+          </span>
+        ))}
+      </div>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: c[0] }} />
@@ -1849,7 +2501,63 @@ function PopUpBookScene({ c }: SceneProps) {
   )
 }
 
-function FlatSceneScene({ c }: SceneProps) {
+function FlatSceneScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 扁平城市：错落楼群逐栋升起 + 飘云
+    const b = [
+      { w: 14, h: 40, col: c[2] },
+      { w: 10, h: 56, col: c[3] },
+      { w: 16, h: 34, col: c[1] },
+      { w: 11, h: 48, col: c[3] },
+      { w: 15, h: 30, col: c[2] },
+      { w: 12, h: 44, col: c[1] },
+    ]
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: c[0] }} />
+        <div className="absolute right-[14%] top-[10%] size-[12cqw] rounded-full" style={{ background: c[1], animation: A('ff-pulse-soft', '5s') }} />
+        <div className="absolute left-[8%] top-[14%] h-[4cqw] w-[14cqw] rounded-full bg-white/80" style={{ animation: A('ff-drift', '20s', 'linear') }} />
+        <div className="absolute inset-x-0 bottom-0 flex h-[58%] items-end justify-center gap-[1.6cqw] px-[6%]">
+          {b.map((bd, i) => (
+            <div
+              key={i}
+              className="flex flex-col items-center rounded-t-[1cqw]"
+              style={{ width: `${bd.w}%`, height: `${bd.h}%`, background: bd.col, animation: A('ff-appear-up', '0.8s', 'cubic-bezier(.2,1.2,.4,1)', `${i * 0.12}s`, '1 both') }}
+            >
+              <div className="mt-[1cqw] grid w-full grid-cols-2 gap-[1cqw] px-[1cqw]">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <div key={j} className="h-[1.6cqw] rounded-[0.3cqw]" style={{ background: j % 3 === 0 ? c[1] : '#ffffff88' }} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 扁平自然循环：起伏山丘 + 飞鸟掠过 + 风
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[1]}33)` }} />
+        <div className="absolute left-[16%] top-[12%] size-[10cqw] rounded-full" style={{ background: c[1], animation: A('ff-pulse-soft', '6s') }} />
+        <svg viewBox="0 0 100 60" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+          <path d="M0 40 Q 25 28 50 38 T 100 34 L100 60 0 60 Z" fill={c[2]} opacity="0.85" style={{ animation: A('ff-wave-tilt', '9s', 'ease-in-out') }} />
+          <path d="M0 48 Q 30 40 55 47 T 100 44 L100 60 0 60 Z" fill={c[3]} opacity="0.9" />
+        </svg>
+        <div className="absolute" style={{ top: '14%', left: 0, width: '100%', animation: A('ff-drift', '14s', 'linear') }}>
+          <svg viewBox="0 0 100 60" className="h-[20cqw] w-[40cqw]">
+            <path d="M20 16 q 3 -4 6 0 q 3 -4 6 0 M44 22 q 2.4 -3.2 4.8 0 q 2.4 -3.2 4.8 0" fill="none" stroke={c[1]} strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </div>
+        <div className="absolute bottom-[14%] left-[18%]">
+          <div className="mx-auto h-[5cqw] w-[1.2cqw] rounded-full" style={{ background: '#7c5c3e88' }} />
+          <div className="size-[7cqw] rounded-[50%_50%_50%_4%] rounded-tl-[2%]" style={{ background: c[2], transform: 'rotate(-14deg)' }} />
+        </div>
+        <div className="absolute right-[8%] top-[8%] font-mono" style={{ color: `${c[2]}99`, fontSize: '3cqw' }}>{name.slice(0, 4)}</div>
+      </>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: c[0] }} />
@@ -1938,7 +2646,90 @@ function DetectiveBoardScene({ c, name }: SceneProps) {
   )
 }
 
-function GalleryWallScene({ c, name }: SceneProps) {
+function GalleryWallScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 博物馆射灯：暗墙 + 扫掠光锥 + 画作随光点亮
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, #000)` }} />
+        {[18, 50, 82].map((x, i) => (
+          <div
+            key={i}
+            className="absolute top-0 h-[70%] w-[36%] origin-top"
+            style={{
+              left: `${x - 18}%`,
+              background: `linear-gradient(180deg, ${c[1]}55, transparent 85%)`,
+              clipPath: 'polygon(38% 0%, 62% 0%, 100% 100%, 0% 100%)',
+              filter: 'blur(1cqw)',
+              animation: A('ff-flicker', `${4 + i}s`, 'linear', `${i * 1.2}s`),
+            }}
+          />
+        ))}
+        {[6, 40, 72].map((l, i) => (
+          <div
+            key={`f${i}`}
+            className="absolute"
+            style={{
+              left: `${l}%`,
+              top: `${34 + (i % 2) * 8}%`,
+              width: '22%',
+              height: '36%',
+              padding: '1.2cqw',
+              background: '#0d0d0d',
+              boxShadow: `0 1cqw 2.4cqw rgba(0,0,0,.7), 0 0 ${3 + i * 2}cqw ${[c[2], c[3], c[2]][i]}55`,
+              animation: A('ff-flicker', `${5 + i * 1.4}s`, 'linear', `${i * 0.8}s`),
+            }}
+          >
+            <div className="h-full w-full" style={{ background: `linear-gradient(${140 + i * 40}deg, ${[c[2], c[3], c[1]][i]}55, ${c[1]}22 60%, ${[c[3], c[2], c[3]][i]}33)` }} />
+          </div>
+        ))}
+        <div className="absolute bottom-[6%] left-1/2 -translate-x-1/2 font-serif italic" style={{ color: `${c[1]}cc`, fontSize: '3.4cqw' }}>
+          {name.slice(0, 6)}
+        </div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 展廊走廊：成排画作横向滚动 + 地面反光
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[0]}, ${c[0]}dd 72%, #00000055)` }} />
+        <div className="absolute left-0 top-[16%] flex h-[46%] w-[200%] items-center gap-[6cqw] px-[6cqw]">
+          {[0, 1].map((k) => (
+            <div key={k} className="flex w-1/2 shrink-0 items-center justify-around gap-[6cqw]" style={{ animation: A('ff-marquee', '22s', 'linear') }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-[9cqw] w-[7cqw] shrink-0 p-[0.8cqw]" style={{ background: '#0b0b0b', boxShadow: `0 0.6cqw 1.8cqw rgba(0,0,0,.6), 0 0 3cqw ${i % 2 ? c[3] : c[2]}44` }}>
+                  <div className="h-full w-full" style={{ background: `linear-gradient(${120 + i * 60}deg, ${i % 2 ? c[3] : c[2]}66, ${c[1]}22)` }} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="absolute inset-x-0 bottom-[22%] h-[0.3cqw]" style={{ background: `${c[1]}33` }} />
+        <div className="absolute inset-x-0 bottom-0 h-[22%]" style={{ background: `linear-gradient(180deg, ${c[1]}14, transparent)` }} />
+      </>
+    )
+  }
+  if (v === 3) {
+    // 沙龙式密挂：双排多幅 + 铭牌，逐幅浮现
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[1]}1f, ${c[0]})` }} />
+        {[0, 1].map((row) => (
+          <div key={row} className="absolute inset-x-[6%] flex items-start justify-center gap-[2.4cqw]" style={{ top: row ? '52%' : '10%' }}>
+            {[c[2], c[3], c[1], c[2], c[3]].map((col, i) => (
+              <div key={i} className="flex flex-col items-center gap-[0.8cqw]" style={{ animation: A('ff-appear-up', '0.9s', 'cubic-bezier(.2,1.2,.4,1)', `${row * 0.5 + i * 0.18}s`, '1 both') }}>
+                <div className="p-[0.7cqw]" style={{ width: `${[15, 11, 17, 12, 14][i]}cqw`, background: '#0a0a0a', boxShadow: '0 0.5cqw 1.4cqw rgba(0,0,0,.55)' }}>
+                  <div className="h-[11cqw]" style={{ background: `linear-gradient(${110 + i * 50}deg, ${col}66, ${c[1]}22 65%, ${col}33)` }} />
+                </div>
+                <div className="h-[1.4cqw] w-[60%]" style={{ background: `${c[1]}44` }} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: `radial-gradient(90% 120% at 50% 0%, ${c[1]}26, transparent 60%), ${c[0]}` }} />
@@ -2043,7 +2834,97 @@ function BeatBarsScene({ c }: SceneProps) {
 
 /* ============================ 电影 / 复古 ============================ */
 
-function FilmGrainScene({ c, name }: SceneProps) {
+function FilmGrainScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 默片字幕卡：椭圆遮罩 + 衬线标题 + 划痕闪烁
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `radial-gradient(80% 90% at 50% 50%, ${c[1]}33, ${c[0]})` }} />
+        <div className="absolute inset-[7%] rounded-[50%] border-[0.5cqw]" style={{ borderColor: `${c[2]}55`, boxShadow: `inset 0 0 5cqw ${c[0]}` }} />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-[2cqw] px-[16%] text-center">
+          <div className="font-serif font-black leading-tight" style={{ color: c[1], fontSize: '8.5cqw', animation: A('ff-flicker', '5s', 'linear') }}>
+            {name.slice(0, 6)}
+          </div>
+          <div className="h-[0.3cqw] w-[36%]" style={{ background: `${c[2]}88` }} />
+          <div className="font-mono tracking-[0.6cqw]" style={{ color: c[2], fontSize: '3cqw', animation: A('ff-flicker', '4s', 'linear', '0.5s') }}>
+            A SILENT FILM · 1927
+          </div>
+        </div>
+        <div className="ff-grain-layer absolute -inset-[10%] opacity-30" style={{ animation: A('ff-grain-shift', '0.8s', 'steps(4)') }} />
+      </>
+    )
+  }
+  if (v === 2) {
+    // 放映机抖动：胶片齿孔边条 + 整帧微抖 + 明暗闪烁
+    return (
+      <div className="absolute inset-0" style={{ background: '#0a0908' }}>
+        <div className="absolute inset-0" style={{ animation: A('ff-jitter', '0.9s', 'linear') }}>
+          <div className="absolute inset-x-[9%] inset-y-[6%] overflow-hidden" style={{ background: `linear-gradient(160deg, ${c[1]}44, ${c[0]}), ${c[2]}22`, boxShadow: 'inset 0 0 4cqw rgba(0,0,0,.7)' }}>
+            <div className="absolute left-[10%] top-[18%] font-serif italic" style={{ color: c[2], fontSize: '6cqw' }}>{name.slice(0, 5)}</div>
+            <div className="absolute bottom-[14%] right-[10%] font-mono" style={{ color: c[3], fontSize: '3cqw' }}>SCENE 04</div>
+          </div>
+        </div>
+        {[0, 1].map((side) => (
+          <div key={side} className="absolute top-0 h-full w-[7%] overflow-hidden" style={{ left: side ? undefined : '1%', right: side ? '1%' : undefined, background: '#111' }}>
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="absolute left-1/2 size-[2.6cqw] -translate-x-1/2 rounded-[0.4cqw]" style={{ top: `${4 + i * 11}%`, background: '#000', boxShadow: 'inset 0 0 0 0.3cqw #1c1c1c' }} />
+            ))}
+          </div>
+        ))}
+        <div className="absolute inset-0" style={{ background: c[0], opacity: 0.9, mixBlendMode: 'multiply', animation: A('ff-flicker', '2.6s', 'linear') }} />
+        <div className="ff-grain-layer absolute -inset-[10%] opacity-40" style={{ animation: A('ff-grain-shift', '0.7s', 'steps(5)') }} />
+      </div>
+    )
+  }
+  if (v === 3) {
+    // 胶片划痕：竖向划痕漂移 + 尘点下落
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[1]}55, ${c[0]})` }} />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-black italic" style={{ color: c[2], fontSize: '9cqw', opacity: 0.85, animation: A('ff-flicker', '3.5s', 'linear') }}>
+          {name.slice(0, 4)}
+        </div>
+        {[18, 52, 78].map((x, i) => (
+          <div key={i} className="absolute top-0 h-full w-[0.25cqw]" style={{ left: `${x}%`, background: i === 1 ? '#ffffffaa' : `${c[3]}99`, animation: A('ff-glitch-x', `${1.8 + i * 0.7}s`, 'linear', `${i * 0.4}s`) }} />
+        ))}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={`d${i}`} className="absolute rounded-full" style={{ left: `${(i * 17 + 6) % 92}%`, top: '-4%', width: '0.5cqw', height: '0.5cqw', background: '#fff', opacity: 0.7, animation: A('ff-fall', `${1.6 + (i % 3) * 0.8}s`, 'linear', `${i * 0.5}s`) }} />
+        ))}
+        <div className="ff-grain-layer absolute -inset-[10%] opacity-35" style={{ animation: A('ff-grain-shift', '0.85s', 'steps(5)') }} />
+      </>
+    )
+  }
+  if (v === 4) {
+    // 宽银幕平移：2.35:1 黑边 + 内景缓慢横移
+    return (
+      <div className="absolute inset-0" style={{ background: c[0] }}>
+        <div className="absolute inset-0 overflow-hidden" style={{ animation: A('ff-pan', '14s', 'ease-in-out') }}>
+          <div className="absolute inset-y-0" style={{ width: '130%', left: '-15%', background: `linear-gradient(105deg, ${c[1]}55 0%, ${c[2]}33 40%, ${c[1]}44 75%, ${c[3]}33)` }} />
+          <svg viewBox="0 0 130 60" preserveAspectRatio="none" className="absolute inset-y-0 h-full" style={{ width: '130%', left: '-15%' }}>
+            <path d="M0 46 L24 28 L48 44 L74 24 L100 42 L130 30 L130 60 L0 60 Z" fill={c[0]} opacity="0.85" />
+          </svg>
+          <div className="absolute right-[22%] top-[18%] size-[9cqw] rounded-full" style={{ background: c[2], boxShadow: `0 0 5cqw ${c[2]}88` }} />
+        </div>
+        <div className="absolute inset-x-0 top-0 h-[13%]" style={{ background: '#000' }} />
+        <div className="absolute inset-x-0 bottom-0 h-[13%]" style={{ background: '#000' }} />
+        <div className="ff-grain-layer absolute -inset-[10%] opacity-25" style={{ animation: A('ff-grain-shift', '0.9s', 'steps(4)') }} />
+      </div>
+    )
+  }
+  if (v === 5) {
+    // 泛黄怀旧：暖褐色调 + 老照片暗角 + 呼吸闪烁
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `radial-gradient(75% 85% at 50% 45%, ${c[1]}55, ${c[0]})`, animation: A('ff-flicker', '6s', 'linear') }} />
+        <div className="absolute inset-[9%] rounded-[50%] border-[0.4cqw]" style={{ borderColor: `${c[2]}44`, boxShadow: `inset 0 0 7cqw ${c[0]}` }} />
+        <div className="absolute left-1/2 top-1/2 w-[56%] -translate-x-1/2 -translate-y-1/2 rotate-[-4deg] p-[1cqw]" style={{ background: '#f2e8d5', boxShadow: '0 0.6cqw 2cqw rgba(0,0,0,.5)' }}>
+          <div className="h-[18cqw]" style={{ background: `linear-gradient(150deg, ${c[1]}66, ${c[2]}44, ${c[3]}55)`, filter: 'sepia(0.4)' }} />
+          <div className="mt-[1cqw] text-center font-serif italic" style={{ color: '#4a3b28', fontSize: '3.4cqw' }}>{name.slice(0, 6)}</div>
+        </div>
+        <div className="ff-grain-layer absolute -inset-[10%] opacity-30" style={{ animation: A('ff-grain-shift', '0.75s', 'steps(4)') }} />
+      </>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c[1]}44, ${c[0]})` }} />
@@ -2097,7 +2978,63 @@ function SpyFilmScene({ c, name }: SceneProps) {
   )
 }
 
-function SunburstScene({ c, name }: SceneProps) {
+function SunburstScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 装饰艺术扇形：层叠圆弧 + 放射线 + 底部太阳
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: c[0] }} />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
+          {[46, 36, 26].map((w, i) => (
+            <div
+              key={i}
+              className="absolute bottom-0 rounded-t-[50%]"
+              style={{
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: `${w * 1.6}cqw`,
+                height: `${w}cqw`,
+                borderTop: `0.5cqw solid ${i === 1 ? c[3] : c[2]}`,
+                borderLeft: `0.3cqw solid ${i === 1 ? c[3] : c[2]}55`,
+                borderRight: `0.3cqw solid ${i === 1 ? c[3] : c[2]}55`,
+                opacity: 0.8 - i * 0.15,
+              }}
+            />
+          ))}
+          <div className="absolute bottom-0 size-[10cqw] rounded-full" style={{ left: '50%', transform: 'translateX(-50%)', background: `radial-gradient(circle, ${c[2]}, ${c[1]})`, boxShadow: `0 0 6cqw ${c[1]}99` }} />
+        </div>
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div key={`r${i}`} className="absolute bottom-0 left-1/2 h-[58%] w-[0.3cqw] origin-bottom" style={{ marginLeft: '-0.15cqw', transform: `rotate(${(i - 4) * 9}deg)`, background: `linear-gradient(180deg, transparent, ${c[3]}66)` }} />
+        ))}
+        <div className="absolute left-[8%] top-[10%] font-serif tracking-[0.4cqw]" style={{ color: c[2], fontSize: '4.4cqw' }}>{name.slice(0, 4)}</div>
+      </>
+    )
+  }
+  if (v === 2) {
+    // 舞台灯束：双向扫射光束 + 底部雾气
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `radial-gradient(120% 100% at 50% 110%, ${c[1]}33, ${c[0]})` }} />
+        <div className="absolute -bottom-[40%] left-[10%] h-[180%] w-[150%] origin-bottom" style={{ background: `repeating-conic-gradient(from -80deg at 35% 100%, ${c[2]}30 0deg 5deg, transparent 5deg 15deg)`, animation: A('ff-spin', '18s', 'linear') }} />
+        <div className="absolute -bottom-[40%] right-[10%] h-[180%] w-[150%] origin-bottom" style={{ background: `repeating-conic-gradient(from -100deg at 65% 100%, ${c[3]}26 0deg 4deg, transparent 4deg 13deg)`, animation: A('ff-spin-rev', '22s', 'linear') }} />
+        <div className="absolute inset-x-0 bottom-0 h-[20%]" style={{ background: `linear-gradient(180deg, transparent, ${c[1]}55)`, filter: 'blur(1cqw)' }} />
+        <div className="absolute left-[6%] top-[8%] font-black italic" style={{ color: c[2], fontSize: '7cqw', textShadow: `0.4cqw 0.4cqw 0 ${c[3]}66` }}>{name.slice(0, 4)}</div>
+      </>
+    )
+  }
+  if (v === 3) {
+    // 镜头光晕：对角光斑列 + 变形镜头横纹
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${c[0]}, ${c[1]}44)` }} />
+        <div className="absolute left-[10%] top-[12%] size-[9cqw] rounded-full" style={{ background: `radial-gradient(circle, #fff, ${c[2]} 40%, transparent 70%)`, boxShadow: `0 0 8cqw ${c[2]}`, animation: A('ff-pulse-soft', '4s') }} />
+        {[[30, 34, 5, c[3]], [48, 52, 3.4, c[2]], [66, 68, 6, c[1]], [82, 80, 2.6, c[3]]].map(([l, t, s, col], i) => (
+          <div key={i} className="absolute rounded-full" style={{ left: `${l}%`, top: `${t}%`, width: `${s}cqw`, height: `${s}cqw`, background: `radial-gradient(circle, ${col}aa, transparent 70%)`, opacity: 0.8, animation: A('ff-twinkle', `${3 + i}s`, 'ease-in-out', `${i * 0.6}s`) }} />
+        ))}
+        <div className="absolute left-0 top-[34%] h-[0.5cqw] w-full" style={{ background: `linear-gradient(90deg, transparent, ${c[2]}88 20%, ${c[3]}66 50%, ${c[2]}88 80%, transparent)`, animation: A('ff-twinkle', '5s', 'ease-in-out') }} />
+      </>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: c[0] }} />
@@ -2266,7 +3203,54 @@ function TacticsScene({ c, name }: SceneProps) {
   )
 }
 
-function EditorialScene({ c, name }: SceneProps) {
+function EditorialScene({ c, name, v = 0 }: SceneProps) {
+  if (v === 1) {
+    // 首字下沉：大衬线首字 + 双栏正文
+    return (
+      <div className="absolute inset-0" style={{ background: c[0] }}>
+        <div className="absolute inset-x-[9%] top-[10%]">
+          <div className="flex items-baseline gap-[2cqw]">
+            <span className="font-serif font-black leading-[0.8]" style={{ color: c[1], fontSize: '22cqw', animation: A('ff-appear', '1s', 'cubic-bezier(.2,1.2,.4,1)', '0.2s', '1 both') }}>{name.slice(0, 1)}</span>
+            <div className="flex-1 space-y-[0.9cqw] pt-[2cqw]">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-[0.75cqw] rounded-full" style={{ width: `${70 + ((i * 17) % 28)}%`, background: c[3], opacity: 0.4, animation: A('ff-appear', '0.7s', 'ease-out', `${0.5 + i * 0.12}s`, '1 both') }} />
+              ))}
+            </div>
+          </div>
+          <div className="mt-[2.4cqw] h-[0.25cqw] w-full" style={{ background: `${c[2]}66` }} />
+          <div className="mt-[1.8cqw] grid grid-cols-2 gap-[2.4cqw]">
+            {[0, 1].map((col) => (
+              <div key={col} className="space-y-[0.8cqw]">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-[0.7cqw] rounded-full" style={{ width: `${65 + ((i * 23 + col * 19) % 32)}%`, background: c[3], opacity: 0.35, animation: A('ff-appear', '0.7s', 'ease-out', `${0.8 + col * 0.3 + i * 0.1}s`, '1 both') }} />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="mt-[2.2cqw] font-serif italic" style={{ color: c[2], fontSize: '3.2cqw' }}>{name.slice(0, 6)} — 专栏</div>
+        </div>
+      </div>
+    )
+  }
+  if (v === 2) {
+    // 引文版式：巨大引号 + 斜体金句 + 上下细线
+    return (
+      <div className="absolute inset-0 flex flex-col justify-center" style={{ background: c[0] }}>
+        <div className="absolute inset-x-[8%] top-[12%] h-[0.3cqw]" style={{ background: c[2] }} />
+        <div className="absolute -left-[1%] top-[16%] font-serif font-black leading-none" style={{ color: `${c[1]}33`, fontSize: '26cqw' }}>“</div>
+        <div className="px-[14%] text-center">
+          <div className="font-serif italic leading-snug" style={{ color: c[1], fontSize: '6.4cqw', animation: A('ff-appear-up', '1.1s', 'ease-out', '0.2s', '1 both') }}>
+            {name.slice(0, 7)}
+          </div>
+          <div className="mt-[2.4cqw] font-mono tracking-[0.4cqw]" style={{ color: c[3], fontSize: '2.8cqw', animation: A('ff-appear-up', '0.9s', 'ease-out', '0.7s', '1 both') }}>
+            — {name.slice(0, 4)} · EDITOR
+          </div>
+        </div>
+        <div className="absolute inset-x-[8%] bottom-[12%] h-[0.3cqw]" style={{ background: c[2] }} />
+        <div className="absolute bottom-[6%] left-1/2 -translate-x-1/2 font-mono" style={{ color: `${c[3]}88`, fontSize: '2.2cqw' }}>ISSUE 15 · 2025</div>
+      </div>
+    )
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: c[0] }} />
@@ -2304,6 +3288,68 @@ function EditorialScene({ c, name }: SceneProps) {
       </div>
     </>
   )
+}
+
+/* ============================ 质感叠层 ============================ */
+
+// 后期质感层：叠加在任意场景之上，与构图变体共同保证小样独特性
+function SceneTexture({ t, c }: { t: TextureKey; c: string[] }) {
+  switch (t) {
+    case 'grain':
+      return <div className="ff-grain-layer pointer-events-none absolute -inset-[10%] opacity-25" style={{ animation: A('ff-grain-shift', '0.9s', 'steps(5)') }} />
+    case 'vignette':
+      return <div className="pointer-events-none absolute inset-0" style={{ boxShadow: `inset 0 0 7cqw ${c[0]}cc` }} />
+    case 'scanlines':
+      return (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: `repeating-linear-gradient(180deg, ${c[0]}22 0 1px, transparent 1px 3px)`, opacity: 0.5 }}>
+          <div className="absolute inset-x-0 h-[14%]" style={{ background: `linear-gradient(180deg, transparent, ${c[2]}14, transparent)`, animation: A('ff-scan-v', '4.5s', 'linear') }} />
+        </div>
+      )
+    case 'dust':
+      return (
+        <div className="pointer-events-none absolute inset-0">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                left: `${(i * 29 + 8) % 94}%`,
+                top: `${(i * 37 + 10) % 88}%`,
+                width: `${0.4 + (i % 2) * 0.3}cqw`,
+                height: `${0.4 + (i % 2) * 0.3}cqw`,
+                background: i % 3 === 0 ? c[1] : '#ffffff',
+                opacity: 0.55,
+                animation: A('ff-drop-slow', `${7 + i * 1.3}s`, 'linear', `${i * 0.9}s`),
+              }}
+            />
+          ))}
+        </div>
+      )
+    case 'halftone':
+      return (
+        <div className="pointer-events-none absolute inset-0 opacity-[0.13]" style={{ color: c[1] }}>
+          <div className="ff-halftone-dots absolute inset-0" />
+        </div>
+      )
+    case 'letterbox':
+      return (
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-x-0 top-0 h-[9%]" style={{ background: '#000' }} />
+          <div className="absolute inset-x-0 bottom-0 h-[9%]" style={{ background: '#000' }} />
+        </div>
+      )
+    case 'paper':
+      return (
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.16] mix-blend-multiply"
+          style={{ background: `repeating-linear-gradient(0deg, ${c[3]}55 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, ${c[3]}33 0 1px, transparent 1px 4px)` }}
+        />
+      )
+    case 'weave':
+      return (
+        <div className="pointer-events-none absolute inset-0 opacity-[0.1]" style={{ background: `repeating-linear-gradient(45deg, ${c[1]}99 0 1px, transparent 1px 5px), repeating-linear-gradient(-45deg, ${c[2]}77 0 1px, transparent 1px 5px)` }} />
+      )
+  }
 }
 
 /* ============================ 渲染分发 ============================ */
@@ -2399,7 +3445,7 @@ export function StylePreview({
   className?: string
   rounded?: string
 }) {
-  const { motif, colors, label } = resolvePreview(style)
+  const { motif, colors, variant, texture } = resolvePreview(style)
   const Motif = MOTIF_COMPONENTS[motif] ?? MOTIF_COMPONENTS.bauhaus
   return (
     <div
@@ -2408,7 +3454,8 @@ export function StylePreview({
       role="img"
       aria-label={`${style.name} 风格动画小样`}
     >
-      <Motif c={colors} name={style.name} />
+      <Motif c={colors} name={style.name} v={variant} />
+      {texture && <SceneTexture t={texture} c={colors} />}
     </div>
   )
 }

@@ -1,5 +1,7 @@
-// 风格小样预览注册表：369 种风格 → 动画 motif + 专属配色
+// 风格小样预览注册表：369 种风格 → 动画 motif + 构图变体 v + 质感叠层 t + 专属配色
 // 配色优先级：注册表 c（手工精调） > 数据库 palette（提示词原文 hex 提取） > motif 默认
+// 差异化三维度：motif（动画引擎）/ v（同 motif 内不同构图）/ t（后期质感叠层），
+// 同 motif 的风格按出现顺序轮转分配 (v, t)，确保同系列内不出现“只换色”的重复小样
 import type { StyleItem } from './types'
 
 export type MotifKey =
@@ -17,10 +19,36 @@ export type MotifKey =
   | 'filmGrain' | 'spyFilm' | 'sunburst' | 'constructivism' | 'rubberHose' | 'celSpeed'
   | 'tactics' | 'editorial'
 
+// 后期质感叠层：叠加在任意场景之上，进一步拉开同 motif 风格的观感差异
+export type TextureKey = 'grain' | 'vignette' | 'scanlines' | 'dust' | 'halftone' | 'letterbox' | 'paper' | 'weave'
+
 export interface PreviewSpec {
   m: MotifKey
   c?: string[] // [bg, primary, secondary, accent]
+  v?: number // 构图变体（缺省按同 motif 出现顺序自动轮转）
+  t?: TextureKey // 质感叠层（缺省自动轮转）
 }
+
+// 热点 motif 的变体数量（重构图，非换色）：解决 369 风格共用 79 动画的重复问题
+export const MOTIF_VARIANT_COUNT: Partial<Record<MotifKey, number>> = {
+  dawnSky: 6, // 28 个风格共用 → 拆 6 种天空构图
+  filmGrain: 6, // 24 个 → 拆 6 种胶片形态
+  galleryWall: 4, // 14 个 → 拆 4 种展陈方式
+  sunburst: 4, // 11 个 → 拆 4 种光芒构图
+  paperCut: 4, // 10 个 → 拆 4 种纸艺形态
+  flatScene: 3,
+  halftonePop: 3,
+  sketchy: 3,
+  kineticBlocks: 3,
+  neonSign: 3,
+  impasto: 3,
+  oneStroke: 3,
+  watercolor: 3,
+  pixelSprite: 3,
+  editorial: 3,
+}
+
+const TEXTURE_CYCLE: TextureKey[] = ['grain', 'vignette', 'scanlines', 'dust', 'halftone', 'letterbox', 'paper', 'weave']
 
 // —— motif 默认配色（兜底） ——
 export const MOTIF_DEFAULTS: Record<MotifKey, string[]> = {
@@ -518,12 +546,41 @@ export interface ResolvedPreview {
   motif: MotifKey
   colors: string[] // 恒为 4 色
   label: string
+  variant: number // 构图变体索引
+  texture: TextureKey | null // 质感叠层（null = 无）
 }
 
 function padColors(c: string[]): string[] {
   const out = [...c]
   while (out.length < 4) out.push(out[out.length % Math.max(out.length, 1)] ?? '#a1a1aa')
   return out.slice(0, 4)
+}
+
+// ===== 自动分配 (v, t)：按 motif 分组的出现顺序轮转，同 motif 风格互不撞车 =====
+// 容量校验：每个 motif 的共用数 ≤ 变体数 × 8 种质感（如 dawnSky 28 ≤ 6×8=48）
+function buildAutoVT(): Record<string, { v: number; t: TextureKey }> {
+  const auto: Record<string, { v: number; t: TextureKey }> = {}
+  const seen: Partial<Record<MotifKey, number>> = {}
+  for (const [key, spec] of Object.entries(PREVIEW_MAP)) {
+    const n = MOTIF_VARIANT_COUNT[spec.m] ?? 1
+    const i = seen[spec.m] ?? 0
+    seen[spec.m] = i + 1
+    auto[key] = {
+      v: n > 1 ? i % n : 0,
+      t: TEXTURE_CYCLE[Math.floor(i / n) % TEXTURE_CYCLE.length],
+    }
+  }
+  return auto
+}
+const AUTO_VT = buildAutoVT()
+
+function hashKey(s: string): number {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
 }
 
 export function resolvePreview(style: StyleItem): ResolvedPreview {
@@ -536,9 +593,17 @@ export function resolvePreview(style: StyleItem): ResolvedPreview {
   const colors = spec.c ?? (dbPalette.length >= 2 ? dbPalette : null) ?? MOTIF_DEFAULTS[spec.m] ?? [
     '#27272a', '#a1a1aa', '#e4e4e7', '#f59e0b',
   ]
+  const n = MOTIF_VARIANT_COUNT[spec.m] ?? 1
+  const auto = AUTO_VT[key]
+  const h = hashKey(key)
+  // 手工指定 > PREVIEW_MAP 顺序轮转 > key 哈希兜底（系列 fallback 条目）
+  const variant = spec.v ?? auto?.v ?? (n > 1 ? h % n : 0)
+  const texture = spec.t ?? auto?.t ?? (auto || n > 1 ? TEXTURE_CYCLE[(h >>> 8) % TEXTURE_CYCLE.length] : null)
   return {
     motif: spec.m,
     colors: padColors(colors),
     label: style.sid || style.name.slice(0, 4),
+    variant,
+    texture,
   }
 }
