@@ -78,7 +78,7 @@ export function SiteHeader() {
 
       {/* 移动端导航 */}
       <nav
-        className="flex items-center gap-1 overflow-x-auto scrollbar-thin border-t border-zinc-800/60 px-3 py-2 md:hidden"
+        className="relative flex items-center gap-1 overflow-x-auto scrollbar-thin border-t border-zinc-800/60 px-3 py-2 md:hidden"
         aria-label="移动端导航"
       >
         {TABS.map((t) => (
@@ -96,6 +96,10 @@ export function SiteHeader() {
             {t.label}
           </button>
         ))}
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-zinc-950 to-transparent"
+          aria-hidden="true"
+        />
       </nav>
     </header>
   )

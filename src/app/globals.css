@@ -468,3 +468,92 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ==================================================================
+   StylePreview 风格小样动画系统（369 种风格预览）
+   ================================================================== */
+.ff-scene {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* —— 通用基础 —— */
+@keyframes ff-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-18%); } }
+@keyframes ff-drift { from { transform: translateX(-120%); } to { transform: translateX(320%); } }
+@keyframes ff-spin { to { transform: rotate(360deg); } }
+@keyframes ff-spin-rev { to { transform: rotate(-360deg); } }
+@keyframes ff-pulse-soft { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+@keyframes ff-blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+@keyframes ff-breathe { 0% { transform: scale(0.5); opacity: 0; } 30% { opacity: 0.85; } 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes ff-rise { from { transform: translateY(140%); opacity: 0; } 20% { opacity: 1; } to { transform: translateY(-60%); opacity: 0; } }
+@keyframes ff-fall { from { transform: translateY(-60%); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(160%); opacity: 0; } }
+@keyframes ff-rain-diag { from { transform: translate(20%,-140%) rotate(12deg); } to { transform: translate(-30%,160%) rotate(12deg); } }
+@keyframes ff-sway { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes ff-appear { from { opacity: 0; transform: scale(0.55) rotate(-4deg); } to { opacity: 1; transform: scale(1) rotate(0deg); } }
+@keyframes ff-appear-up { from { opacity: 0; transform: translateY(35%); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ff-dash-draw { from { stroke-dashoffset: var(--dash, 300); } to { stroke-dashoffset: 0; } }
+@keyframes ff-grow-v { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes ff-grow-h { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ff-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes ff-equal { 0%,100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
+@keyframes ff-karaoke-wipe { from { width: 0; } to { width: 100%; } }
+@keyframes ff-blob-morph {
+  0%,100% { border-radius: 42% 58% 62% 38% / 45% 42% 58% 55%; transform: rotate(0deg); }
+  33% { border-radius: 58% 42% 38% 62% / 55% 58% 42% 45%; transform: rotate(8deg); }
+  66% { border-radius: 50% 50% 55% 45% / 42% 55% 45% 58%; transform: rotate(-6deg); }
+}
+@keyframes ff-squish {
+  0%,100% { transform: scale(1,1); }
+  45% { transform: scale(1.12,0.86); }
+  60% { transform: scale(0.94,1.08); }
+}
+@keyframes ff-grain-shift {
+  0% { transform: translate(0,0); } 20% { transform: translate(-4%,3%); }
+  40% { transform: translate(3%,-4%); } 60% { transform: translate(-3%,-3%); }
+  80% { transform: translate(4%,2%); } 100% { transform: translate(-2%,4%); }
+}
+@keyframes ff-flicker {
+  0%,100% { opacity: 1; } 6% { opacity: 0.55; } 9% { opacity: 0.95; }
+  26% { opacity: 0.65; } 30% { opacity: 1; } 54% { opacity: 0.75; } 58% { opacity: 1; }
+}
+@keyframes ff-scan-track { from { transform: translateY(-160%); } to { transform: translateY(420%); } }
+@keyframes ff-scan-v { from { transform: translateY(-110%); } to { transform: translateY(240%); } }
+@keyframes ff-glitch-x { 0%,100% { transform: translate(0); } 20% { transform: translate(-9%,0); } 40% { transform: translate(7%,1%); } 60% { transform: translate(-5%,-1%); } 80% { transform: translate(9%,0); } }
+@keyframes ff-tunnel { from { transform: scale(0.15); opacity: 0; } 25% { opacity: 1; } to { transform: scale(2.6); opacity: 0; } }
+@keyframes ff-gather { 0% { transform: translate(var(--gx,40px), var(--gy,-30px)) scale(0.2); opacity: 0; } 60% { opacity: 1; } 100% { transform: translate(0,0) scale(1); opacity: 1; } }
+@keyframes ff-jitter {
+  0%,100% { transform: translate(0,0); } 20% { transform: translate(0.8px,-0.5px); }
+  40% { transform: translate(-0.6px,0.6px); } 60% { transform: translate(0.5px,0.5px); } 80% { transform: translate(-0.8px,-0.4px); }
+}
+@keyframes ff-bounce-soft { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-32%); } 90% { transform: translateY(0) scaleX(1.05); } }
+@keyframes ff-hue-cycle { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(28deg); } }
+@keyframes ff-shimmer-x { from { background-position: 220% 0; } to { background-position: -120% 0; } }
+@keyframes ff-wave-tilt { 0%,100% { transform: translateX(-6%) rotate(-2deg) scaleY(1); } 50% { transform: translateX(6%) rotate(2deg) scaleY(1.15); } }
+@keyframes ff-pixel-steps { 0% { transform: translate(0,0); } 25% { transform: translate(0,-100%); } 50% { transform: translate(-100%,-100%); } 75% { transform: translate(-100%,0); } 100% { transform: translate(0,0); } }
+@keyframes ff-drop-slow { 0% { transform: translateY(-40%) translateX(0) scale(1); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(320%) translateX(-12%) scale(0.8); opacity: 0; } }
+@keyframes ff-sweep-conic { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes ff-tile-flip { 0% { transform: rotateX(0); } 50% { transform: rotateX(180deg); } 100% { transform: rotateX(360deg); } }
+@keyframes ff-flap { 0%,100% { transform: rotateX(0deg); } 50% { transform: rotateX(-88deg); } }
+@keyframes ff-caret-step { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes ff-train-move { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@keyframes ff-heartbeat { 0%,100% { transform: scale(1); } 14% { transform: scale(1.25); } 28% { transform: scale(1); } 42% { transform: scale(1.18); } }
+@keyframes ff-zoom-slow { from { transform: scale(1); } to { transform: scale(1.25); } }
+@media (prefers-reduced-motion: reduce) {
+  .ff-scene *, .ff-scene { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; }
+}
+.ff-grain-layer {
+  background-image: repeating-conic-gradient(#fff 0% 0.0009%, transparent 0.0009% 0.0022%), repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px);
+  background-size: 7px 7px, 100% 4px;
+  mix-blend-mode: overlay;
+}
+.ff-scanlines {
+  background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 4px);
+}
+.ff-halftone-dots {
+  background-image: radial-gradient(currentColor 1px, transparent 1.4px);
+  background-size: 8px 8px;
+}
+.ff-grid-lines {
+  background-image: linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px);
+  background-size: 18px 18px;
+}

@@ -31,6 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { HistorySection } from './history-section'
 import { StoryboardResultView } from './storyboard-result'
+import { StylePreview } from './style-preview'
 import { buildStoryboardMarkdown, downloadTextFile, type StoryboardMeta } from '@/lib/markdown'
 import { copyText, useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
@@ -175,6 +176,12 @@ export function Studio({
       }))
       .filter((g) => g.items.length > 0)
   }, [styles])
+
+  // 当前选中的风格（auto 时为 null）
+  const selectedStyle = useMemo(
+    () => (form.styleSlug === 'auto' ? null : styles.find((s) => s.slug === form.styleSlug) ?? null),
+    [form.styleSlug, styles],
+  )
 
   useEffect(() => {
     return () => timersRef.current.forEach(clearInterval)
@@ -408,6 +415,30 @@ export function Studio({
                 </Select>
               </div>
             </div>
+
+            {/* 选中风格的小样预览（全宽） */}
+            {selectedStyle && (
+              <div className="flex gap-3 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/40 p-2.5">
+                <StylePreview style={selectedStyle} className="h-[4.5rem] w-28 shrink-0 sm:h-20 sm:w-32" rounded="rounded-md" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="truncate text-sm font-semibold text-zinc-200">{selectedStyle.name}</span>
+                    <span className="shrink-0 font-mono text-[10px] uppercase text-zinc-500">
+                      {selectedStyle.sid || selectedStyle.nameEn}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-zinc-500">
+                    {selectedStyle.looksLike || selectedStyle.description}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {(selectedStyle.palette || '').split(',').filter((x) => x.trim()).slice(0, 4).map((col, i) => (
+                      <span key={i} className="size-2.5 rounded-full border border-white/20" style={{ background: col.trim() }} />
+                    ))}
+                    <span className="text-[10px] text-zinc-600">风格小样 · 完整提示词见风格素材库</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 时长 */}
             <div className="space-y-1.5">

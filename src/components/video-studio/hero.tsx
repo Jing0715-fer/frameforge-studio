@@ -71,7 +71,7 @@ export function Hero({ stats }: { stats: HeroStats }) {
             </Button>
           </div>
 
-          <dl className="mt-9 grid max-w-lg grid-cols-4 gap-3">
+          <dl className="mt-9 grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4">
             {statItems.map((s) => (
               <div
                 key={s.label}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SiteHeader } from './site-header'
 import { Hero } from './hero'
 import { SiteFooter } from './site-footer'
@@ -29,6 +29,12 @@ export function VideoStudioApp({
   // 提示词的复制计数在客户端维护（乐观更新 + 后端持久化）
   const [prompts, setPrompts] = useState(initialPrompts)
   const [history, setHistory] = useState(initialHistory)
+  // 切换标签时回到内容区顶部（避开吸顶导航）
+  const sectionRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const y = (sectionRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY - 76
+    if (Math.abs(window.scrollY - y) > 4) window.scrollTo({ top: Math.max(y, 0), behavior: 'smooth' })
+  }, [tab])
 
   function bumpCopyCount(id: number) {
     setPrompts((prev) =>
@@ -54,7 +60,7 @@ export function VideoStudioApp({
             effects: initialEffects.length,
           }}
         />
-        <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+        <section ref={sectionRef} className="mx-auto w-full max-w-7xl scroll-mt-20 px-4 py-8 sm:px-6 sm:py-10">
           {tab === 'styles' && <StylesLibrary styles={initialStyles} />}
           {tab === 'prompts' && (
             <PromptLibrary prompts={prompts} onCopyCountChange={bumpCopyCount} />

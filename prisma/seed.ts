@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { styleSeeds, promptSeeds, effectSeeds } from './seed-data'
 import { extraPromptSeeds, extraEffectSeeds } from './seed-extra'
+import { fyRecipeEffectSeeds, fyRecipePromptSeeds } from './seed-fy-recipes'
 
 const db = new PrismaClient()
 
@@ -36,7 +37,7 @@ function loadAttachmentStyles() {
       category: s.seriesLabel,
       description: s.looksLike || `${s.name}（${s.seriesLabel}）`,
       tags: [s.keywords, s.suitableFor, s.styleTag].filter(Boolean).join(',').slice(0, 200),
-      palette: '',
+      palette: extractPalette(s.promptFull),
       sourceRepo:
         s.series === 'L'
           ? 'lemo-opuscar'
@@ -80,6 +81,13 @@ function loadAgEffects() {
   }
 }
 
+// 从风格提示词原文提取十六进制色板（首次遇到的 ≤4 个）
+const HEX_RE = /#[0-9a-fA-F]{6}\b/g
+function extractPalette(text: string): string {
+  const hexes = Array.from(new Set((text || '').match(HEX_RE) || []))
+  return hexes.length >= 2 ? hexes.slice(0, 4).join(',') : ''
+}
+
 async function main() {
   const attachmentStyles = loadAttachmentStyles()
   const agEffects = loadAgEffects()
@@ -96,8 +104,8 @@ async function main() {
   }))
 
   const allStyles = [...curatedStyles, ...attachmentStyles]
-  const allPrompts = [...promptSeeds, ...extraPromptSeeds]
-  const allEffects = [...effectSeeds, ...extraEffectSeeds, ...agEffects]
+  const allPrompts = [...promptSeeds, ...extraPromptSeeds, ...fyRecipePromptSeeds]
+  const allEffects = [...effectSeeds, ...extraEffectSeeds, ...agEffects, ...fyRecipeEffectSeeds]
 
   // 幂等：清空后重灌
   await db.generation.deleteMany()
@@ -122,7 +130,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded: ${allStyles.length} styles (${curatedStyles.length} curated + ${attachmentStyles.length} attachment), ${allPrompts.length} prompts, ${allEffects.length} effects (${agEffects.length} AG canvas)`
+    `Seeded: ${allStyles.length} styles (${curatedStyles.length} curated + ${attachmentStyles.length} attachment), ${allPrompts.length} prompts, ${allEffects.length} effects (${agEffects.length} AG canvas + ${fyRecipeEffectSeeds.length} fy recipes)`
   )
 }
 

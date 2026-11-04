@@ -30,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { CategoryChips } from './category-chips'
 import { CopyButton } from './copy-button'
+import { StylePreview } from './style-preview'
 import { getRepo } from '@/lib/repos'
 import { useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
@@ -139,7 +140,7 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
               setQ(e.target.value)
               setVisible(PAGE_SIZE)
             }}
-            placeholder="搜索风格/编号，如：水墨、L36、奥斯卡、粒子…"
+            placeholder="搜索风格：水墨 / L36 / 奥斯卡…"
             aria-label="搜索风格"
             className="h-10 border-zinc-800 bg-zinc-900/60 pl-9 text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-amber-500/40"
           />
@@ -195,36 +196,32 @@ function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem)
   return (
     <Card className="group overflow-hidden border-zinc-800 bg-zinc-900/50 transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/5">
       <div
-        className="relative h-28 cursor-pointer overflow-hidden"
-        style={{
-          background: hasPalette
-            ? `linear-gradient(130deg, ${colors[0] ?? '#27272a'}, ${colors[1] ?? '#3f3f46'} 55%, ${colors[2] ?? '#52525b'})`
-            : seriesGradient(seriesKey),
-        }}
+        className="relative cursor-pointer overflow-hidden"
         onClick={() => onOpen(style)}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && onOpen(style)}
         aria-label={`查看 ${style.name} 详情`}
       >
-        <div className="absolute inset-0 ff-style-pattern opacity-60" />
-        <Icon className="absolute -bottom-3 -right-3 size-24 text-white/15 transition-transform duration-300 group-hover:scale-110" />
-        <div className="absolute left-3 top-3 flex gap-1.5">
-          <Badge className="border-white/20 bg-black/45 text-[11px] text-white/90 backdrop-blur">
+        <StylePreview style={style} className="aspect-[16/10] w-full" rounded="rounded-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+        <Icon className="pointer-events-none absolute -bottom-3 -right-3 size-20 text-white/10 transition-transform duration-300 group-hover:scale-110" />
+        <div className="pointer-events-none absolute left-3 top-3 flex gap-1.5">
+          <Badge className="border-white/20 bg-black/55 text-[11px] text-white/90 backdrop-blur">
             {style.sid || seriesKey}
           </Badge>
         </div>
         {style.difficulty && (
-          <div className="absolute right-3 top-3">
+          <div className="pointer-events-none absolute right-3 top-3">
             <Badge
               variant="outline"
-              className={cn('border bg-black/45 text-[11px] backdrop-blur', DIFFICULTY_STYLES[style.difficulty])}
+              className={cn('border bg-black/55 text-[11px] backdrop-blur', DIFFICULTY_STYLES[style.difficulty])}
             >
               {style.difficulty}
             </Badge>
           </div>
         )}
-        <div className="absolute bottom-3 left-3 flex gap-1.5" aria-hidden="true">
+        <div className="pointer-events-none absolute bottom-3 left-3 flex gap-1.5" aria-hidden="true">
           {hasPalette ? (
             colors.slice(0, 4).map((c, i) => (
               <span
@@ -299,23 +296,6 @@ function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem)
   )
 }
 
-function seriesGradient(series: string): string {
-  const map: Record<string, string> = {
-    AG: 'linear-gradient(130deg, #1e293b, #0f766e 60%, #14532d)',
-    M: 'linear-gradient(130deg, #292524, #9a3412 60%, #7c2d12)',
-    K: 'linear-gradient(130deg, #27272a, #be185d 60%, #831843)',
-    Z: 'linear-gradient(130deg, #1c1917, #57534e 60%, #a8a29e)',
-    H: 'linear-gradient(130deg, #18181b, #3f3f46 60%, #71717a)',
-    L: 'linear-gradient(130deg, #191924, #3730a3 60%, #1e1b4b)',
-    V: 'linear-gradient(130deg, #20124d, #701a75 60%, #4c1d95)',
-    X: 'linear-gradient(130deg, #0c1929, #155e75 60%, #0e7490)',
-    R: 'linear-gradient(130deg, #0f0f1a, #a21caf 60%, #c026d3)',
-    O: 'linear-gradient(130deg, #292018, #b45309 60%, #92400e)',
-    精选: 'linear-gradient(130deg, #27272a, #3f3f46 55%, #52525b)',
-  }
-  return map[series] ?? map['精选']
-}
-
 function StyleDialog({ style, onClose }: { style: StyleItem | null; onClose: () => void }) {
   const repo = style ? getRepo(style.sourceRepo) : null
   const colors = style?.palette.split(',').map((c) => c.trim()).filter(Boolean) ?? []
@@ -326,16 +306,10 @@ function StyleDialog({ style, onClose }: { style: StyleItem | null; onClose: () 
         {style && (
           <>
             <DialogHeader>
-              <div
-                className="relative mb-1 h-24 overflow-hidden rounded-lg"
-                style={{
-                  background: colors.length
-                    ? `linear-gradient(130deg, ${colors[0]}, ${colors[1] ?? colors[0]} 55%, ${colors[2] ?? colors[2 - 1] ?? colors[0]})`
-                    : seriesGradient(style.series || '精选'),
-                }}
-              >
-                <div className="absolute inset-0 ff-style-pattern opacity-60" />
-                <div className="absolute bottom-2 left-3 flex gap-1.5">
+              <div className="relative mb-1 overflow-hidden rounded-lg">
+                <StylePreview style={style} className="aspect-video w-full" rounded="rounded-lg" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                <div className="absolute bottom-2.5 left-3 flex gap-1.5">
                   {colors.map((c, i) => (
                     <span
                       key={i}
