@@ -1,0 +1,101 @@
+'use client'
+
+import { Clapperboard, Github, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useAppStore } from '@/lib/store'
+import type { TabKey } from '@/lib/types'
+import { cn } from '@/lib/utils'
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'styles', label: '风格素材库' },
+  { key: 'prompts', label: 'Prompt 库' },
+  { key: 'effects', label: '动效库' },
+  { key: 'studio', label: 'AI 分镜工坊' },
+]
+
+export function SiteHeader() {
+  const tab = useAppStore((s) => s.tab)
+  const setTab = useAppStore((s) => s.setTab)
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <button
+          className="flex items-center gap-2.5"
+          onClick={() => setTab('styles')}
+          aria-label="回到首页"
+        >
+          <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 shadow-lg shadow-amber-500/20">
+            <Clapperboard className="size-5 text-zinc-950" />
+          </span>
+          <span className="text-left leading-tight">
+            <span className="block text-base font-bold tracking-tight text-zinc-50">
+              FrameForge
+            </span>
+            <span className="block text-[11px] text-zinc-500">分镜工坊 · AI 视频灵感库</span>
+          </span>
+        </button>
+
+        {/* 桌面端导航 */}
+        <nav className="hidden items-center gap-1 md:flex" aria-label="主导航">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              aria-current={tab === t.key ? 'page' : undefined}
+              className={cn(
+                'h-9 rounded-lg px-3.5 text-sm font-medium transition-colors',
+                tab === t.key
+                  ? 'bg-amber-500/15 text-amber-300'
+                  : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-100'
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+          <Button
+            size="sm"
+            onClick={() => setTab('studio')}
+            className="ml-2 bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-zinc-950 shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-orange-400"
+          >
+            <Sparkles className="size-3.5" />
+            开始创作
+          </Button>
+        </nav>
+
+        <a
+          href="https://github.com"
+          target="_blank"
+          rel="noreferrer"
+          className="hidden items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 lg:flex"
+          aria-label="开源灵感仓库"
+        >
+          <Github className="size-3.5" />
+          灵感源自开源社区
+        </a>
+      </div>
+
+      {/* 移动端导航 */}
+      <nav
+        className="flex items-center gap-1 overflow-x-auto scrollbar-thin border-t border-zinc-800/60 px-3 py-2 md:hidden"
+        aria-label="移动端导航"
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            aria-current={tab === t.key ? 'page' : undefined}
+            className={cn(
+              'h-9 shrink-0 rounded-lg px-3 text-[13px] font-medium transition-colors',
+              tab === t.key
+                ? 'bg-amber-500/15 text-amber-300'
+                : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-100'
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+    </header>
+  )
+}

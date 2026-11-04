@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 影片风格素材（灵感来自 lemo-opuscar 66 种风格 / huashu-art-motion 35 种艺术风格 / mg-styles-15 等）
+model Style {
+  id            Int      @id @default(autoincrement())
+  slug          String   @unique
+  name          String
+  nameEn        String
+  category      String // 电影质感 | 艺术风格 | 手绘动画 | MG 动效 | 三维立体 | 复古怀旧 | 版式文字
+  description   String
+  tags          String // 逗号分隔
+  palette       String // 逗号分隔 hex 色板
+  sourceRepo    String
+  difficulty    String // 入门 | 进阶 | 专业
+  starterPrompt String
+  createdAt     DateTime @default(now())
+}
+
+// 精选提示词（灵感来自 awesome-opus5-5-videos 703 条提示词 / opus-video-prompts 中文案例库）
+model Prompt {
+  id         Int      @id @default(autoincrement())
+  title      String
+  category   String // 一句话灵感 | 完整模板 | 参考图驱动 | 长提示词 | 分镜脚本 | 技术实现
+  content    String
+  tags       String // 逗号分隔
+  sourceRepo String
+  useCase    String
+  copyCount  Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+// 动效预设（灵感来自 mg-styles-15 / huashu-art-motion 动效语法 / remotion-skills）
+model Effect {
+  id          Int    @id @default(autoincrement())
+  name        String
+  nameEn      String
+  category    String // 运镜 | 转场 | 文字动效 | 节奏 | 视觉效果
+  description String
+  codeSnippet String
+  prompt      String
+  sourceRepo  String
+  demo        String // 前端 CSS 演示动画 key
+}
+
+// AI 生成的分镜稿历史
+model Generation {
+  id         Int      @id @default(autoincrement())
+  title      String
+  logline    String
+  framework  String
+  styleName  String
+  input      String // JSON：用户表单输入
+  output     String // JSON：分镜结果
+  createdAt  DateTime @default(now())
+}
