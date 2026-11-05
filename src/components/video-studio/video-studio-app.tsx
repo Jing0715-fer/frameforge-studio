@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { ArrowUp } from 'lucide-react'
 import { SiteHeader } from './site-header'
 import { Hero } from './hero'
 import { SiteFooter } from './site-footer'
@@ -9,8 +10,11 @@ import { PromptLibrary } from './prompt-library'
 import { EffectsLibrary } from './effects-library'
 import { MethodologyGuide } from './methodology-guide'
 import { Studio } from './studio'
+import { CommandPalette } from './command-palette'
+import { InspirationDice } from './inspiration-dice'
 import { useAppStore } from '@/lib/store'
 import type { EffectItem, HistoryListItem, PromptItem, StyleItem } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 interface Props {
   initialStyles: StyleItem[]
@@ -49,6 +53,11 @@ export function VideoStudioApp({
     })
   }
 
+  // Hero 轮播池：精选系列里带色板的风格（视觉冲击力优先）
+  const showcaseStyles = initialStyles.filter(
+    (s) => (s.series || '精选') === '精选' && s.palette.trim().length > 0
+  )
+
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
       <SiteHeader />
@@ -59,6 +68,7 @@ export function VideoStudioApp({
             prompts: prompts.length,
             effects: initialEffects.length,
           }}
+          showcaseStyles={showcaseStyles}
         />
         <section ref={sectionRef} className="mx-auto w-full max-w-7xl scroll-mt-20 px-4 py-8 sm:px-6 sm:py-10">
           {tab === 'styles' && <StylesLibrary styles={initialStyles} />}
@@ -78,6 +88,46 @@ export function VideoStudioApp({
         </section>
       </main>
       <SiteFooter />
+
+      {/* 全局能力：⌘K 命令面板 + 灵感骰子 + 回到顶部 */}
+      <CommandPalette
+        styles={initialStyles}
+        prompts={prompts}
+        effects={initialEffects}
+      />
+      <InspirationDice
+        styles={initialStyles}
+        prompts={prompts}
+        effects={initialEffects}
+      />
+      <BackToTop />
     </div>
+  )
+}
+
+/** 滚动较深后出现的回到顶部悬浮按钮 */
+function BackToTop() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    function onScroll() {
+      setVisible(window.scrollY > 640)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="回到顶部"
+      className={cn(
+        'fixed bottom-4 right-4 z-40 flex size-10 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/90 text-zinc-300 shadow-xl shadow-black/40 backdrop-blur transition-all hover:border-amber-500/50 hover:text-amber-300',
+        visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0'
+      )}
+    >
+      <ArrowUp className="size-4" />
+    </button>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { Clapperboard, Github, Sparkles } from 'lucide-react'
+import { Clapperboard, Github, Search, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/lib/store'
 import type { TabKey } from '@/lib/types'
@@ -17,6 +17,7 @@ const TABS: { key: TabKey; label: string }[] = [
 export function SiteHeader() {
   const tab = useAppStore((s) => s.tab)
   const setTab = useAppStore((s) => s.setTab)
+  const setPaletteOpen = useAppStore((s) => s.setPaletteOpen)
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur-md">
@@ -64,16 +65,38 @@ export function SiteHeader() {
           </Button>
         </nav>
 
-        <a
-          href="https://github.com"
-          target="_blank"
-          rel="noreferrer"
-          className="hidden items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 lg:flex"
-          aria-label="开源灵感仓库"
-        >
-          <Github className="size-3.5" />
-          灵感源自开源社区
-        </a>
+        <div className="flex items-center gap-2">
+          {/* 全局搜索入口（⌘K 命令面板） */}
+          <button
+            onClick={() => setPaletteOpen(true)}
+            aria-label="打开全局搜索（Ctrl+K）"
+            className="hidden h-9 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 pl-2.5 pr-1.5 text-sm text-zinc-500 transition-colors hover:border-zinc-700 hover:bg-zinc-800/70 hover:text-zinc-300 lg:flex"
+          >
+            <Search className="size-3.5" />
+            <span className="pr-6">搜索风格 / 提示词 / 动效</span>
+            <kbd className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+              ⌘K
+            </kbd>
+          </button>
+          <button
+            onClick={() => setPaletteOpen(true)}
+            aria-label="打开全局搜索"
+            className="flex size-9 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-100 lg:hidden"
+          >
+            <Search className="size-4" />
+          </button>
+
+          <a
+            href="https://github.com"
+            target="_blank"
+            rel="noreferrer"
+            className="hidden items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 xl:flex"
+            aria-label="开源灵感仓库"
+          >
+            <Github className="size-3.5" />
+            灵感源自开源社区
+          </a>
+        </div>
       </div>
 
       {/* 移动端导航 */}

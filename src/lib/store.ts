@@ -13,6 +13,12 @@ interface AppState {
   applyStyle: (slug: string) => void
   /** 从提示词库一键带入创意 → 跳到工坊 */
   applyPrompt: (content: string) => void
+  /** 命令面板（⌘K）开关：瞬态，不持久化 */
+  paletteOpen: boolean
+  setPaletteOpen: (open: boolean) => void
+  /** 灵感骰子弹窗开关：瞬态，不持久化 */
+  diceOpen: boolean
+  setDiceOpen: (open: boolean) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -35,6 +41,10 @@ export const useAppStore = create<AppState>()(
       applyStyle: (slug) => set((s) => ({ tab: 'studio', form: { ...s.form, styleSlug: slug } })),
       applyPrompt: (content) =>
         set((s) => ({ tab: 'studio', form: { ...s.form, idea: content.slice(0, 1200) } })),
+      paletteOpen: false,
+      setPaletteOpen: (open) => set({ paletteOpen: open }),
+      diceOpen: false,
+      setDiceOpen: (open) => set({ diceOpen: open }),
     }),
     {
       name: 'frameforge-app',

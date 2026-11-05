@@ -559,3 +559,33 @@
   background-image: linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px);
   background-size: 18px 18px;
 }
+
+/* ================= 灵感骰子 / 命令面板 ================= */
+@keyframes ff-dice-shake {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(-14deg) scale(1.12); }
+  40% { transform: rotate(10deg) scale(1.08); }
+  60% { transform: rotate(-8deg) scale(1.1); }
+  80% { transform: rotate(6deg) scale(1.04); }
+}
+.ff-dice-rolling { animation: ff-dice-shake 0.6s ease-in-out; }
+.ff-dice-blur { opacity: 0.35; filter: blur(2px); transition: opacity 0.15s ease, filter 0.15s ease; }
+
+/* 命令面板入场 */
+@keyframes ff-palette-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+[data-radix-dialog-content]:has([data-slot="command-input"]) {
+  animation: ff-palette-in 0.18s ease-out;
+}
+
+/* 风格对比浮动操作条 */
+@keyframes ff-compare-bar-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ff-compare-bar { animation: ff-compare-bar-in 0.22s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .ff-dice-rolling, .ff-dice-blur, .ff-compare-bar { animation-duration: 0.01s !important; }
+}

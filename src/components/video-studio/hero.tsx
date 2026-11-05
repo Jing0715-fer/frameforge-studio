@@ -1,8 +1,12 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Layers, Lightbulb, Palette, Sparkles, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DiceButton } from './inspiration-dice'
+import { StylePreview } from './style-preview'
 import { useAppStore } from '@/lib/store'
+import type { StyleItem } from '@/lib/types'
 
 export interface HeroStats {
   styles: number
@@ -10,8 +14,30 @@ export interface HeroStats {
   effects: number
 }
 
-export function Hero({ stats }: { stats: HeroStats }) {
+export function Hero({
+  stats,
+  showcaseStyles = [],
+}: {
+  stats: HeroStats
+  showcaseStyles?: StyleItem[]
+}) {
   const setTab = useAppStore((s) => s.setTab)
+
+  // 轮播索引：每 4s 换一批展示风格
+  const [carousel, setCarousel] = useState(0)
+  useEffect(() => {
+    if (showcaseStyles.length <= 3) return
+    const t = setInterval(() => setCarousel((c) => c + 1), 4000)
+    return () => clearInterval(t)
+  }, [showcaseStyles.length])
+
+  const slots = useMemo(() => {
+    if (showcaseStyles.length === 0) return null
+    const n = showcaseStyles.length
+    return [0, 1, 2].map(
+      (i) => showcaseStyles[(carousel * 3 + i) % n]
+    )
+  }, [showcaseStyles, carousel])
 
   const statItems = [
     { icon: Githublike, value: '15+1', label: '源开源项目/附件' },
@@ -69,6 +95,7 @@ export function Hero({ stats }: { stats: HeroStats }) {
               <Layers className="size-4" />
               浏览素材库
             </Button>
+            <DiceButton />
           </div>
 
           <dl className="mt-9 grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4">
@@ -87,53 +114,71 @@ export function Hero({ stats }: { stats: HeroStats }) {
           </dl>
         </div>
 
-        {/* 装饰：动态分镜条 */}
+        {/* 装饰：动态分镜条（真实风格小样轮播） */}
         <div className="relative hidden lg:block" aria-hidden="true">
           <div className="relative -rotate-2">
             <div className="grid grid-cols-3 gap-3">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className={`overflow-hidden rounded-lg border border-zinc-700/80 bg-zinc-900/80 shadow-xl ${
-                    i === 0 ? 'ff-float' : i === 1 ? 'ff-float-2' : 'ff-float-3'
-                  }`}
-                >
-                  <div className="relative aspect-video">
-                    {i === 0 && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/30 via-zinc-800 to-zinc-900 p-3">
-                        <div className="h-2.5 w-3/4 rounded bg-amber-400/70" />
-                        <div className="mt-2 h-1.5 w-1/2 rounded bg-zinc-600" />
-                        <div className="absolute bottom-3 left-3 font-mono text-[9px] text-amber-300/80">
-                          00:00 · 特写
+              {slots
+                ? slots.map((s, i) => (
+                    <div
+                      key={s.slug}
+                      className={`overflow-hidden rounded-lg border border-zinc-700/80 bg-zinc-900/80 shadow-xl transition-transform duration-700 ${
+                        i === 0 ? 'ff-float' : i === 1 ? 'ff-float-2' : 'ff-float-3'
+                      }`}
+                    >
+                      <div className="relative aspect-video">
+                        <StylePreview style={s} className="h-full w-full" rounded="rounded-none" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                        <div className="absolute bottom-1.5 left-2 max-w-full truncate font-mono text-[9px] text-white/90">
+                          {String(i === 0 ? '00:00' : i === 1 ? '00:08' : '00:16')} · {s.name}
                         </div>
                       </div>
-                    )}
-                    {i === 1 && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-rose-500/20 via-zinc-800 to-zinc-900 p-3">
-                        <div className="size-10 rounded-full bg-gradient-to-br from-rose-400/80 to-orange-500/60" />
-                        <div className="mt-3 h-1.5 w-2/3 rounded bg-zinc-600" />
-                        <div className="absolute bottom-3 left-3 font-mono text-[9px] text-rose-300/80">
-                          00:08 · 中景
-                        </div>
+                      <div className="flex h-5 items-center px-2 ff-sprocket bg-zinc-950" />
+                    </div>
+                  ))
+                : [0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className={`overflow-hidden rounded-lg border border-zinc-700/80 bg-zinc-900/80 shadow-xl ${
+                        i === 0 ? 'ff-float' : i === 1 ? 'ff-float-2' : 'ff-float-3'
+                      }`}
+                    >
+                      <div className="relative aspect-video">
+                        {i === 0 && (
+                          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/30 via-zinc-800 to-zinc-900 p-3">
+                            <div className="h-2.5 w-3/4 rounded bg-amber-400/70" />
+                            <div className="mt-2 h-1.5 w-1/2 rounded bg-zinc-600" />
+                            <div className="absolute bottom-3 left-3 font-mono text-[9px] text-amber-300/80">
+                              00:00 · 特写
+                            </div>
+                          </div>
+                        )}
+                        {i === 1 && (
+                          <div className="absolute inset-0 bg-gradient-to-br from-rose-500/20 via-zinc-800 to-zinc-900 p-3">
+                            <div className="size-10 rounded-full bg-gradient-to-br from-rose-400/80 to-orange-500/60" />
+                            <div className="mt-3 h-1.5 w-2/3 rounded bg-zinc-600" />
+                            <div className="absolute bottom-3 left-3 font-mono text-[9px] text-rose-300/80">
+                              00:08 · 中景
+                            </div>
+                          </div>
+                        )}
+                        {i === 2 && (
+                          <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 via-zinc-800 to-zinc-900 p-3">
+                            <div className="flex gap-1.5">
+                              <div className="h-10 w-5 rounded bg-teal-400/70" />
+                              <div className="h-10 w-5 rounded bg-zinc-600" />
+                              <div className="h-10 w-5 rounded bg-amber-400/60" />
+                            </div>
+                            <div className="mt-3 h-1.5 w-1/2 rounded bg-zinc-600" />
+                            <div className="absolute bottom-3 left-3 font-mono text-[9px] text-teal-300/80">
+                              00:16 · 全景
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {i === 2 && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 via-zinc-800 to-zinc-900 p-3">
-                        <div className="flex gap-1.5">
-                          <div className="h-10 w-5 rounded bg-teal-400/70" />
-                          <div className="h-10 w-5 rounded bg-zinc-600" />
-                          <div className="h-10 w-5 rounded bg-amber-400/60" />
-                        </div>
-                        <div className="mt-3 h-1.5 w-1/2 rounded bg-zinc-600" />
-                        <div className="absolute bottom-3 left-3 font-mono text-[9px] text-teal-300/80">
-                          00:16 · 全景
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex h-5 items-center px-2 ff-sprocket bg-zinc-950" />
-                </div>
-              ))}
+                      <div className="flex h-5 items-center px-2 ff-sprocket bg-zinc-950" />
+                    </div>
+                  ))}
             </div>
             {/* 播放头 */}
             <div className="pointer-events-none absolute -top-2 bottom-0 w-px bg-amber-400/80 shadow-[0_0_12px_rgba(251,191,36,0.9)] ff-playhead" />
@@ -142,7 +187,7 @@ export function Hero({ stats }: { stats: HeroStats }) {
             <span>00:00</span>
             <span className="flex items-center gap-1.5 text-zinc-500">
               <ArrowRight className="size-3" />
-              TIMELINE · 30 FPS · 1080P
+              {slots ? '风格小样轮播 · 每 4s 换一批' : 'TIMELINE · 30 FPS · 1080P'}
             </span>
             <span>00:24</span>
           </div>

@@ -9,6 +9,7 @@ import {
   Image as ImageIcon,
   Palette,
   PenTool,
+  Scale,
   Search,
   Shapes,
   Sparkles,
@@ -16,6 +17,7 @@ import {
   Trophy,
   Type,
   Wand2,
+  X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -84,8 +86,20 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
   const [q, setQ] = useState('')
   const [active, setActive] = useState<StyleItem | null>(null)
   const [visible, setVisible] = useState(PAGE_SIZE)
+  const [compare, setCompare] = useState<string[]>([])
+  const [compareOpen, setCompareOpen] = useState(false)
   const favSlugs = useFavStore((s) => s.favSlugs)
   const hasFav = favSlugs.length > 0
+
+  function toggleCompare(slug: string) {
+    setCompare((prev) =>
+      prev.includes(slug)
+        ? prev.filter((x) => x !== slug)
+        : prev.length >= 3
+          ? (toast.warning('最多对比 3 种风格，先移除一个吧'), prev)
+          : [...prev, slug]
+    )
+  }
 
   // 系列优先分组：精选 | AG | M | K | Z | H | L | V | X | R | O（收藏过风格时最前面加「我的收藏」）
   const seriesOrder = ['精选', 'AG', 'M', 'K', 'Z', 'H', 'L', 'V', 'X', 'R', 'O']
@@ -170,7 +184,14 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {shown.map((s) => (
-              <StyleCard key={s.id} style={s} onOpen={setActive} />
+              <StyleCard
+                key={s.id}
+                style={s}
+                onOpen={setActive}
+                compareOn={compare.includes(s.slug)}
+                compareFull={compare.length >= 3 && !compare.includes(s.slug)}
+                onToggleCompare={toggleCompare}
+              />
             ))}
           </div>
           {filtered.length > shown.length && (
@@ -188,11 +209,38 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
       )}
 
       <StyleDialog style={active} onClose={() => setActive(null)} />
+
+      {/* 风格对比：浮动操作条 + 对比弹窗 */}
+      <CompareBar
+        styles={styles}
+        compare={compare}
+        onToggle={toggleCompare}
+        onClear={() => setCompare([])}
+        onOpen={() => setCompareOpen(true)}
+      />
+      <CompareDialog
+        styles={styles}
+        compare={compare}
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+      />
     </div>
   )
 }
 
-function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem) => void }) {
+function StyleCard({
+  style,
+  onOpen,
+  compareOn,
+  compareFull,
+  onToggleCompare,
+}: {
+  style: StyleItem
+  onOpen: (s: StyleItem) => void
+  compareOn: boolean
+  compareFull: boolean
+  onToggleCompare: (slug: string) => void
+}) {
   const seriesKey = style.series || '精选'
   const Icon = CATEGORY_ICONS[seriesKey] ?? Palette
   const colors = style.palette.split(',').map((c) => c.trim()).filter(Boolean)
@@ -204,7 +252,12 @@ function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem)
   const hasPalette = colors.length > 0
 
   return (
-    <Card className="group overflow-hidden border-zinc-800 bg-zinc-900/50 transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/5">
+    <Card
+      className={cn(
+        'group overflow-hidden border-zinc-800 bg-zinc-900/50 transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/5',
+        compareOn && 'border-amber-500/60 ring-1 ring-amber-500/30'
+      )}
+    >
       <div
         className="relative cursor-pointer overflow-hidden"
         onClick={() => onOpen(style)}
@@ -244,6 +297,26 @@ function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem)
             )}
           >
             <Star className={cn('size-4', isFav && 'fill-current')} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleCompare(style.slug)
+            }}
+            aria-label={compareOn ? `把 ${style.name} 移出对比` : `把 ${style.name} 加入对比`}
+            aria-pressed={compareOn}
+            title={compareFull && !compareOn ? '对比已满（3 个）' : '加入对比' }
+            className={cn(
+              'rounded-full p-1.5 backdrop-blur transition-colors hover:bg-black/70',
+              compareOn
+                ? 'bg-amber-500/90 text-zinc-950'
+                : cn(
+                    'bg-black/55 text-white/60 hover:text-amber-300 focus-visible:opacity-100',
+                    !compareFull && 'opacity-0 group-hover:opacity-100'
+                  )
+            )}
+          >
+            <Scale className="size-4" />
           </button>
         </div>
         <div className="pointer-events-none absolute bottom-3 left-3 flex gap-1.5" aria-hidden="true">
@@ -482,5 +555,194 @@ function FavToggle({
       <Star className={cn('size-3.5', isFav && 'fill-current')} />
       {isFav ? '已收藏' : '收藏'}
     </Button>
+  )
+}
+
+// ============================================================
+// 风格对比：最多 3 种风格并排比较（预览动画 / 色板 / 提示词节选）
+// ============================================================
+function CompareBar({
+  styles,
+  compare,
+  onToggle,
+  onClear,
+  onOpen,
+}: {
+  styles: StyleItem[]
+  compare: string[]
+  onToggle: (slug: string) => void
+  onClear: () => void
+  onOpen: () => void
+}) {
+  if (compare.length === 0) return null
+  const picked = compare.map((slug) => styles.find((s) => s.slug === slug)).filter(Boolean) as StyleItem[]
+  return (
+    <div
+      className="ff-compare-bar fixed inset-x-0 bottom-4 z-40 flex justify-center px-16 sm:px-4"
+      role="region"
+      aria-label="风格对比操作条"
+    >
+      <div className="flex max-w-full items-center gap-2 rounded-2xl border border-zinc-700/80 bg-zinc-900/95 p-2 pl-3 shadow-2xl shadow-black/60 backdrop-blur-xl">
+        <Scale className="size-4 shrink-0 text-amber-400" aria-hidden="true" />
+        <div className="flex max-w-[52vw] items-center gap-1.5 overflow-x-auto scrollbar-thin sm:max-w-md">
+          {picked.map((s) => (
+            <span
+              key={s.slug}
+              className="flex shrink-0 items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/80 py-1 pl-2 pr-1 text-xs text-zinc-200"
+            >
+              <span className="max-w-28 truncate">{s.name}</span>
+              <button
+                onClick={() => onToggle(s.slug)}
+                aria-label={`把 ${s.name} 移出对比`}
+                className="rounded p-0.5 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                <X className="size-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="hidden text-[11px] text-zinc-500 sm:block">已选 {compare.length}/3</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClear}
+            className="h-8 px-2.5 text-xs text-zinc-400 hover:text-zinc-100"
+          >
+            清空
+          </Button>
+          <Button
+            size="sm"
+            onClick={onOpen}
+            disabled={compare.length < 2}
+            className="h-8 bg-gradient-to-r from-amber-500 to-orange-500 px-3 text-xs font-semibold text-zinc-950 hover:from-amber-400 hover:to-orange-400 disabled:opacity-40"
+          >
+            <Scale className="size-3.5" />
+            对比
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CompareDialog({
+  styles,
+  compare,
+  open,
+  onOpenChange,
+}: {
+  styles: StyleItem[]
+  compare: string[]
+  open: boolean
+  onOpenChange: (o: boolean) => void
+}) {
+  const picked = compare.map((slug) => styles.find((s) => s.slug === slug)).filter(Boolean) as StyleItem[]
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[88vh] overflow-y-auto scrollbar-thin border-zinc-800 bg-zinc-950 sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Scale className="size-4.5 text-amber-400" />
+            风格对比
+            <span className="text-xs font-normal text-zinc-500">{picked.length} 种风格并排看</span>
+          </DialogTitle>
+          <DialogDescription>
+            对比动态小样、色板、难度与适合题材，挑出最合适的那一个。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div
+          className={cn(
+            'grid gap-4',
+            picked.length <= 1 && 'grid-cols-1',
+            picked.length === 2 && 'grid-cols-1 md:grid-cols-2',
+            picked.length >= 3 && 'grid-cols-1 md:grid-cols-3'
+          )}
+        >
+          {picked.map((s) => {
+            const colors = s.palette.split(',').map((c) => c.trim()).filter(Boolean)
+            const fullPrompt = s.promptFull || s.starterPrompt
+            return (
+              <div
+                key={s.slug}
+                className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40"
+              >
+                <div className="relative">
+                  <StylePreview style={s} className="aspect-video w-full" rounded="rounded-none" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  <Badge className="absolute left-2 top-2 border-white/20 bg-black/60 text-[10px] text-white/90 backdrop-blur">
+                    {s.sid || s.series}
+                  </Badge>
+                </div>
+                <div className="flex flex-1 flex-col gap-2.5 p-3.5">
+                  <div>
+                    <h4 className="truncate text-sm font-semibold text-zinc-100">{s.name}</h4>
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-zinc-500">
+                      {s.looksLike || s.description}
+                    </p>
+                  </div>
+
+                  {colors.length > 0 && (
+                    <div className="flex items-center gap-1.5" aria-label="色板">
+                      {colors.slice(0, 5).map((c, i) => (
+                        <span
+                          key={i}
+                          className="size-4 rounded-full border border-white/25"
+                          style={{ background: c }}
+                          title={c}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {s.difficulty && (
+                      <Badge variant="outline" className={cn('px-1.5 text-[10px]', DIFFICULTY_STYLES[s.difficulty])}>
+                        {s.difficulty}
+                      </Badge>
+                    )}
+                    {s.suitableFor && (
+                      <span className="line-clamp-1 text-[10px] text-zinc-600">适合：{s.suitableFor}</span>
+                    )}
+                  </div>
+
+                  <div className="mt-auto border-t border-zinc-800/80 pt-2.5">
+                    <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                      提示词节选
+                    </div>
+                    <p className="line-clamp-4 font-mono text-[11px] leading-relaxed text-zinc-400">
+                      {fullPrompt || '（暂无提示词）'}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-1.5">
+                    <CopyButton
+                      text={fullPrompt}
+                      label="复制提示词"
+                      size="sm"
+                      className="flex-1 border-zinc-700 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800"
+                      variant="outline"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        useAppStore.getState().applyStyle(s.slug)
+                        onOpenChange(false)
+                        toast.success(`已应用风格「${s.name}」`)
+                      }}
+                      className="flex-1 bg-amber-500/15 text-[11px] font-medium text-amber-300 hover:bg-amber-500/25 hover:text-amber-200"
+                    >
+                      <Wand2 className="size-3" />
+                      去生成
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
