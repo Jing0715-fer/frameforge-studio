@@ -10,6 +10,7 @@ import { PromptLibrary } from './prompt-library'
 import { EffectsLibrary } from './effects-library'
 import { MethodologyGuide } from './methodology-guide'
 import { Studio } from './studio'
+import { AudioSync } from './audio-sync'
 import { CommandPalette } from './command-palette'
 import { InspirationDice } from './inspiration-dice'
 import { useAppStore, useFavStore } from '@/lib/store'
@@ -97,6 +98,7 @@ export function VideoStudioApp({
               onHistoryChange={setHistory}
             />
           )}
+          {tab === 'sync' && <AudioSync />}
         </section>
       </main>
       <SiteFooter />

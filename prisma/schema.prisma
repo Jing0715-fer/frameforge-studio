@@ -72,3 +72,16 @@ model Generation {
   starred    Boolean  @default(false) // 用户收藏
   ideaText   String   @default("") // 创意描述冗余列（历史搜索用，避免 JSON 解析）
 }
+
+// 音画对齐项目：歌曲音波分析 × 分镜稿 → AI 对齐优化历史
+model SyncProject {
+  id        Int      @id @default(autoincrement())
+  songName  String
+  duration  Float
+  bpm       Float    @default(0)
+  analysis  String // JSON：AudioAnalysis（BPM/段落/包络/静音缺口）
+  lyrics    String   @default("")
+  board     String // JSON：ParsedStoryboard（初版分镜解析结果）
+  result    String // JSON：SyncResult（优化后分镜）
+  createdAt DateTime @default(now())
+}

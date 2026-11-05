@@ -5,6 +5,7 @@
 // 注：cmdk 会对已渲染的 CommandItem 按 value 做客户端过滤，因此全部渲染、由其过滤
 import { useEffect } from 'react'
 import {
+  AudioWaveform,
   Clapperboard,
   Command as CommandIcon,
   Copy,
@@ -42,6 +43,7 @@ const NAV_ITEMS: { key: TabKey; label: string; icon: typeof Palette }[] = [
   { key: 'effects', label: '动效库', icon: Zap },
   { key: 'methodology', label: '创作方法论', icon: Clapperboard },
   { key: 'studio', label: 'AI 分镜工坊', icon: Wand2 },
+  { key: 'sync', label: '音画对齐', icon: AudioWaveform },
 ]
 
 export function CommandPalette({ styles, prompts, effects }: Props) {
@@ -74,6 +76,8 @@ export function CommandPalette({ styles, prompts, effects }: Props) {
     <CommandDialog
       open={open}
       onOpenChange={setOpen}
+      title="全局命令面板"
+      description="搜索风格、提示词、动效，或执行快捷动作"
       className="border-zinc-800 bg-zinc-950/95 backdrop-blur-xl"
     >
       <CommandInput placeholder="搜索风格 / 提示词 / 动效，或执行快捷动作…" />

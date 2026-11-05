@@ -1,6 +1,6 @@
 // 共享类型定义
 
-export type TabKey = 'styles' | 'prompts' | 'effects' | 'methodology' | 'studio'
+export type TabKey = 'styles' | 'prompts' | 'effects' | 'methodology' | 'studio' | 'sync'
 
 export interface StyleItem {
   id: number
@@ -171,6 +171,53 @@ export const VIDEO_TYPES = [
   '歌词卡拉OK',
   '纪录片叙事',
 ] as const
+
+// ===== 音画对齐（歌曲 × 分镜稿）=====
+
+export type { AudioAnalysis, AudioSection, Intensity } from './sync/audio-analysis'
+export type { BoardShot, BoardUnit, ParsedStoryboard } from './sync/storyboard-parser'
+
+/** AI 优化后的单帧镜头 */
+export interface SyncShotResult {
+  tc: string
+  t: number
+  visual: string
+  direction: string
+  sound: string
+  changed: boolean
+  reason?: string
+  isNew?: boolean
+}
+
+/** AI 优化后的分镜单元 */
+export interface SyncUnitResult {
+  name: string
+  range: string
+  start: number
+  end: number
+  matchedSection: string
+  cutAdvice: string
+  shots: SyncShotResult[]
+}
+
+/** 音画对齐优化结果（LLM 输出重建后） */
+export interface SyncResult {
+  overall: string
+  bpmAdvice: string
+  retimingNotes: string[]
+  units: SyncUnitResult[]
+}
+
+/** 历史项目列表项（不带大字段） */
+export interface SyncProjectListItem {
+  id: number
+  songName: string
+  duration: number
+  bpm: number
+  unitCount: number
+  shotCount: number
+  createdAt: string
+}
 
 // ===== 风格系列元数据 =====
 export interface SeriesInfo {
