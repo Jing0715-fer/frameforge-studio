@@ -1,6 +1,6 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.2.1",
+  "name": "frameforge-studio",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
@@ -91,5 +91,6 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"
-  }
+  },
+  "description": "FrameForge 分镜工坊 — AI 视频分镜与动效灵感库（369 风格库 + 80 提示词 + 85 动效 + fy 语义分镜方法论）"
 }

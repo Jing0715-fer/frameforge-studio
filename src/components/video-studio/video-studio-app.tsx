@@ -10,13 +10,13 @@ import { EffectsLibrary } from './effects-library'
 import { MethodologyGuide } from './methodology-guide'
 import { Studio } from './studio'
 import { useAppStore } from '@/lib/store'
-import type { EffectItem, GenerationRecord, PromptItem, StyleItem } from '@/lib/types'
+import type { EffectItem, HistoryListItem, PromptItem, StyleItem } from '@/lib/types'
 
 interface Props {
   initialStyles: StyleItem[]
   initialPrompts: PromptItem[]
   initialEffects: EffectItem[]
-  initialHistory: GenerationRecord[]
+  initialHistory: HistoryListItem[]
 }
 
 export function VideoStudioApp({

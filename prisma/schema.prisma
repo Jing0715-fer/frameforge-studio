@@ -68,4 +68,7 @@ model Generation {
   input      String // JSON：用户表单输入
   output     String // JSON：分镜结果
   createdAt  DateTime @default(now())
+
+  starred    Boolean  @default(false) // 用户收藏
+  ideaText   String   @default("") // 创意描述冗余列（历史搜索用，避免 JSON 解析）
 }

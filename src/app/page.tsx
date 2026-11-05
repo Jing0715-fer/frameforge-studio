@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { VideoStudioApp } from '@/components/video-studio/video-studio-app'
 import type {
   EffectItem,
-  GenerationRecord,
+  HistoryListItem,
   PromptItem,
   StyleItem,
 } from '@/lib/types'
@@ -23,7 +23,24 @@ export default async function Page() {
     safe(db.style.findMany({ orderBy: { id: 'asc' } }), []),
     safe(db.prompt.findMany({ orderBy: { id: 'asc' } }), []),
     safe(db.effect.findMany({ orderBy: { id: 'asc' } }), []),
-    safe(db.generation.findMany({ orderBy: { createdAt: 'desc' }, take: 24 }), []),
+    // 历史列表不带 output 大字段：列表只展示概要，载入时按需拉取 /api/generations/[id]
+    safe(
+      db.generation.findMany({
+        orderBy: [{ starred: 'desc' }, { createdAt: 'desc' }],
+        take: 24,
+        select: {
+          id: true,
+          title: true,
+          logline: true,
+          framework: true,
+          styleName: true,
+          starred: true,
+          ideaText: true,
+          createdAt: true,
+        },
+      }),
+      []
+    ),
   ])
 
   const initialStyles: StyleItem[] = styles.map((s) => ({
@@ -35,7 +52,7 @@ export default async function Page() {
     createdAt: p.createdAt.toISOString(),
   }))
   const initialEffects: EffectItem[] = effects.map((e) => ({ ...e }))
-  const initialHistory: GenerationRecord[] = generations.map((g) => ({
+  const initialHistory: HistoryListItem[] = generations.map((g) => ({
     ...g,
     createdAt: g.createdAt.toISOString(),
   }))

@@ -57,6 +57,20 @@ export interface GenerationRecord {
   input: string
   output: string
   createdAt: string
+  starred?: boolean
+  ideaText?: string
+}
+
+// 历史列表项：不带 output/input 大字段（列表 UI 只展示概要；载入时按 id 拉全文）
+export interface HistoryListItem {
+  id: number
+  title: string
+  logline: string
+  framework: string
+  styleName: string
+  starred: boolean
+  ideaText: string
+  createdAt: string
 }
 
 // ===== AI 分镜生成结果 =====

@@ -107,8 +107,7 @@ async function main() {
   const allPrompts = [...promptSeeds, ...extraPromptSeeds, ...fyRecipePromptSeeds]
   const allEffects = [...effectSeeds, ...extraEffectSeeds, ...agEffects, ...fyRecipeEffectSeeds]
 
-  // 幂等：清空后重灌
-  await db.generation.deleteMany()
+  // 幂等：清空后重灌（Generation 是用户数据，绝不在这里清空）
   await db.effect.deleteMany()
   await db.prompt.deleteMany()
   await db.style.deleteMany()
@@ -121,7 +120,7 @@ async function main() {
     await db.prompt.createMany({
       data: allPrompts.slice(i, i + batchSize).map((p) => ({
         ...p,
-        copyCount: Math.floor(Math.random() * 40),
+        copyCount: 0, // 真实计数从 0 开始，不伪造数据
       })),
     })
   }

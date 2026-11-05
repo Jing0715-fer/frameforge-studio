@@ -32,7 +32,7 @@ import { CategoryChips } from './category-chips'
 import { CopyButton } from './copy-button'
 import { StylePreview } from './style-preview'
 import { getRepo } from '@/lib/repos'
-import { useAppStore } from '@/lib/store'
+import { useAppStore, useFavStore } from '@/lib/store'
 import { toast } from 'sonner'
 import type { StyleItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -84,13 +84,16 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
   const [q, setQ] = useState('')
   const [active, setActive] = useState<StyleItem | null>(null)
   const [visible, setVisible] = useState(PAGE_SIZE)
+  const favSlugs = useFavStore((s) => s.favSlugs)
+  const hasFav = favSlugs.length > 0
 
-  // 系列优先分组：精选 | AG | M | K | Z | H | L | V | X | R | O
+  // 系列优先分组：精选 | AG | M | K | Z | H | L | V | X | R | O（收藏过风格时最前面加「我的收藏」）
   const seriesOrder = ['精选', 'AG', 'M', 'K', 'Z', 'H', 'L', 'V', 'X', 'R', 'O']
   const categories = useMemo(() => {
     const present = new Set(styles.map((s) => s.series || '精选'))
-    return seriesOrder.filter((k) => present.has(k)).map(seriesKeyToLabel)
-  }, [styles])
+    const list = seriesOrder.filter((k) => present.has(k)).map(seriesKeyToLabel)
+    return hasFav ? ['我的收藏', ...list] : list
+  }, [styles, hasFav])
 
   const counts = useMemo(() => {
     const m: Record<string, number> = { 全部: styles.length }
@@ -98,10 +101,12 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
       const key = seriesKeyToLabel(s.series || '精选')
       m[key] = (m[key] ?? 0) + 1
     }
+    if (hasFav) m['我的收藏'] = favSlugs.length
     return m
-  }, [styles])
+  }, [styles, favSlugs, hasFav])
 
   const activeSeries = useMemo(() => {
+    if (category === '我的收藏') return '收藏'
     const entry = Object.entries(SERIES_LABELS).find(([, label]) => label === category)
     return entry?.[0] ?? '全部'
   }, [category])
@@ -109,7 +114,9 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
   const filtered = useMemo(() => {
     const kw = q.trim().toLowerCase()
     return styles.filter((s) => {
-      if (activeSeries !== '全部' && (s.series || '精选') !== activeSeries) return false
+      if (activeSeries === '收藏' && !favSlugs.includes(s.slug)) return false
+      if (activeSeries !== '全部' && activeSeries !== '收藏' && (s.series || '精选') !== activeSeries)
+        return false
       if (
         kw &&
         !`${s.name}${s.nameEn}${s.sid}${s.tags}${s.description}${s.looksLike}${s.suitableFor}`.toLowerCase().includes(kw)
@@ -117,7 +124,7 @@ export function StylesLibrary({ styles }: { styles: StyleItem[] }) {
         return false
       return true
     })
-  }, [styles, activeSeries, q])
+  }, [styles, activeSeries, q, favSlugs])
 
   const shown = filtered.slice(0, visible)
 
@@ -191,6 +198,9 @@ function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem)
   const colors = style.palette.split(',').map((c) => c.trim()).filter(Boolean)
   const repo = getRepo(style.sourceRepo)
   const applyStyle = useAppStore((s) => s.applyStyle)
+  const favSlugs = useFavStore((s) => s.favSlugs)
+  const toggleFav = useFavStore((s) => s.toggleFav)
+  const isFav = favSlugs.includes(style.slug)
   const hasPalette = colors.length > 0
 
   return (
@@ -200,7 +210,7 @@ function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem)
         onClick={() => onOpen(style)}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && onOpen(style)}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen(style)}
         aria-label={`查看 ${style.name} 详情`}
       >
         <StylePreview style={style} className="aspect-[16/10] w-full" rounded="rounded-none" />
@@ -211,16 +221,31 @@ function StyleCard({ style, onOpen }: { style: StyleItem; onOpen: (s: StyleItem)
             {style.sid || seriesKey}
           </Badge>
         </div>
-        {style.difficulty && (
-          <div className="pointer-events-none absolute right-3 top-3">
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
+          {style.difficulty && (
             <Badge
               variant="outline"
-              className={cn('border bg-black/55 text-[11px] backdrop-blur', DIFFICULTY_STYLES[style.difficulty])}
+              className="pointer-events-none border bg-black/55 text-[11px] backdrop-blur"
+              style={undefined}
             >
-              {style.difficulty}
+              <span className={cn(DIFFICULTY_STYLES[style.difficulty])}>{style.difficulty}</span>
             </Badge>
-          </div>
-        )}
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleFav(style.slug)
+            }}
+            aria-label={isFav ? `取消收藏 ${style.name}` : `收藏 ${style.name}`}
+            aria-pressed={isFav}
+            className={cn(
+              'rounded-full p-1.5 backdrop-blur transition-colors hover:bg-black/70',
+              isFav ? 'bg-black/55 text-amber-400' : 'bg-black/55 text-white/60 opacity-0 hover:text-amber-400 focus-visible:opacity-100 group-hover:opacity-100'
+            )}
+          >
+            <Star className={cn('size-4', isFav && 'fill-current')} />
+          </button>
+        </div>
         <div className="pointer-events-none absolute bottom-3 left-3 flex gap-1.5" aria-hidden="true">
           {hasPalette ? (
             colors.slice(0, 4).map((c, i) => (
@@ -388,6 +413,7 @@ function StyleDialog({ style, onClose }: { style: StyleItem | null; onClose: () 
               )}
 
               <div className="flex flex-wrap justify-end gap-2 pt-1">
+                <FavToggle slug={style.slug} name={style.name} size="default" variant="outline" />
                 <CopyButton text={fullPrompt} label="复制提示词" size="default" />
                 <Button
                   onClick={() => {
@@ -419,5 +445,42 @@ function EmptyState({ keyword }: { keyword: string }) {
       </p>
       <p className="mt-1 text-xs text-zinc-600">试试其他关键词，或切换系列</p>
     </div>
+  )
+}
+
+/** 弹窗/卡片通用：收藏切换按钮 */
+function FavToggle({
+  slug,
+  name,
+  size,
+  variant,
+}: {
+  slug: string
+  name: string
+  size?: 'sm' | 'default'
+  variant?: 'outline' | 'ghost'
+}) {
+  const favSlugs = useFavStore((s) => s.favSlugs)
+  const toggleFav = useFavStore((s) => s.toggleFav)
+  const isFav = favSlugs.includes(slug)
+  return (
+    <Button
+      onClick={() => {
+        toggleFav(slug)
+        toast.success(isFav ? `已取消收藏「${name}」` : `已收藏「${name}」`, {
+          description: isFav ? undefined : '可在风格素材库「我的收藏」与工坊下拉顶部快速找到',
+        })
+      }}
+      aria-pressed={isFav}
+      size={size}
+      variant={variant}
+      className={cn(
+        'border-zinc-700 bg-zinc-900/60 text-zinc-200 hover:bg-zinc-800',
+        isFav && 'text-amber-400 hover:text-amber-300'
+      )}
+    >
+      <Star className={cn('size-3.5', isFav && 'fill-current')} />
+      {isFav ? '已收藏' : '收藏'}
+    </Button>
   )
 }

@@ -59,3 +59,9 @@ dev.log
 upload/代码动画.zip
 download/
 agent-ctx/
+
+# local env template is tracked intentionally
+!.env.example
+
+# local sqlite database
+/db/*.db

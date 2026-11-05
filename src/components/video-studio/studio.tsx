@@ -1,18 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {
+  Check,
+  ChevronsUpDown,
   Clapperboard,
   Clock,
   Download,
   FileText,
   LayoutTemplate,
   Loader2,
+  MessageSquare,
   Monitor,
+  Search,
   Smartphone,
   Sparkles,
   Square,
+  Star,
+  Wand2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,7 +39,7 @@ import { HistorySection } from './history-section'
 import { StoryboardResultView } from './storyboard-result'
 import { StylePreview } from './style-preview'
 import { buildStoryboardMarkdown, downloadTextFile, type StoryboardMeta } from '@/lib/markdown'
-import { copyText, useAppStore } from '@/lib/store'
+import { copyText, useAppStore, useFavStore } from '@/lib/store'
 import { toast } from 'sonner'
 import {
   FRAMEWORK_LABELS,
@@ -43,6 +49,7 @@ import {
   type AspectKey,
   type FrameworkKey,
   type GenerationRecord,
+  type HistoryListItem,
   type OutputModeKey,
   type PacingKey,
   type PromptItem,
@@ -50,6 +57,8 @@ import {
   type StyleItem,
 } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 export interface CurrentGeneration {
   id: number
@@ -131,6 +140,22 @@ const TASKCARD_LOADING_MESSAGES = [
   '正在整理检查计划与风险清单…',
 ]
 
+const REFINING_MESSAGES = [
+  'AI 导演正在重读原稿…',
+  '正在按指令逐处修改…',
+  '正在核对时间轴与阅读窗…',
+  '正在做修改后的连贯性验收…',
+]
+
+// AI 改稿常用指令
+const QUICK_REFINE_INSTRUCTIONS = [
+  '整体节奏再紧凑一些，去掉铺垫镜头',
+  '第 1 镜改成更抓眼的开场钩子',
+  '字幕全部缩短到 10 字以内',
+  '结尾加一个品牌 Logo 收束镜头',
+  '每个镜头的实现提示词再具体一点，写清缓动参数',
+]
+
 export function Studio({
   styles,
   prompts,
@@ -139,8 +164,8 @@ export function Studio({
 }: {
   styles: StyleItem[]
   prompts: PromptItem[]
-  history: GenerationRecord[]
-  onHistoryChange: (h: GenerationRecord[]) => void
+  history: HistoryListItem[]
+  onHistoryChange: Dispatch<SetStateAction<HistoryListItem[]>>
 }) {
   const form = useAppStore((s) => s.form)
   const patchForm = useAppStore((s) => s.patchForm)
@@ -151,6 +176,9 @@ export function Studio({
   const [elapsed, setElapsed] = useState(0)
   const [statusIdx, setStatusIdx] = useState(0)
   const timersRef = useRef<ReturnType<typeof setInterval>[]>([])
+
+  // 历史载入状态（按需拉全文）
+  const [loadingHistoryId, setLoadingHistoryId] = useState<number | null>(null)
 
   // 风格下拉按系列分组
   const styleSeries = useMemo(() => {
@@ -180,7 +208,7 @@ export function Studio({
   // 当前选中的风格（auto 时为 null）
   const selectedStyle = useMemo(
     () => (form.styleSlug === 'auto' ? null : styles.find((s) => s.slug === form.styleSlug) ?? null),
-    [form.styleSlug, styles],
+    [form.styleSlug, styles]
   )
 
   useEffect(() => {
@@ -224,7 +252,9 @@ export function Studio({
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || '生成失败')
 
-      const gen = data.generation as GenerationRecord & { output: StoryboardResult | { title: string; markdown: string } | string }
+      const gen = data.generation as GenerationRecord & {
+        output: StoryboardResult | { title: string; markdown: string } | string
+      }
       const meta: StoryboardMeta = {
         framework: form.framework,
         styleName:
@@ -245,21 +275,52 @@ export function Studio({
           markdown: (output as { markdown?: string })?.markdown ?? '',
         }
         setTaskCard(card)
-        onHistoryChange([
-          { ...gen, output: JSON.stringify({ title: card.title, markdown: card.markdown }), createdAt: gen.createdAt ?? new Date().toISOString() },
-          ...history,
-        ].slice(0, 24))
+        // 函数式更新：用最新 state 拼接，避免长请求期间删除被覆盖（竞态）
+        onHistoryChange((prev) =>
+          [
+            {
+              id: gen.id,
+              title: card.title,
+              logline: gen.logline ?? '',
+              framework: gen.framework ?? form.framework,
+              styleName: card.meta.styleName,
+              starred: false,
+              ideaText: form.idea,
+              createdAt: gen.createdAt ?? new Date().toISOString(),
+            },
+            ...prev,
+          ].slice(0, 24)
+        )
         toast.success(`任务卡《${card.title}》已生成`, {
           description: '12 节 fy 全案设计文档 · 可直接交给工程阶段开工',
         })
       } else {
         const result: StoryboardResult =
           typeof gen.output === 'string' ? JSON.parse(gen.output) : (gen.output as StoryboardResult)
-        setCurrent({ id: gen.id, meta: { ...meta, styleName: form.styleSlug === 'auto' ? result.styleGuide?.name ?? 'AI 自由发挥' : meta.styleName }, result })
-        onHistoryChange([
-          { ...gen, output: JSON.stringify(result), createdAt: gen.createdAt ?? new Date().toISOString() },
-          ...history,
-        ].slice(0, 24))
+        setCurrent({
+          id: gen.id,
+          meta: {
+            ...meta,
+            styleName:
+              form.styleSlug === 'auto' ? result.styleGuide?.name ?? 'AI 自由发挥' : meta.styleName,
+          },
+          result,
+        })
+        onHistoryChange((prev) =>
+          [
+            {
+              id: gen.id,
+              title: result.title,
+              logline: result.logline ?? '',
+              framework: gen.framework ?? form.framework,
+              styleName: result.styleGuide?.name ?? meta.styleName,
+              starred: false,
+              ideaText: form.idea,
+              createdAt: gen.createdAt ?? new Date().toISOString(),
+            },
+            ...prev,
+          ].slice(0, 24)
+        )
         toast.success(`分镜稿《${result.title}》已生成`, {
           description: `${result.shots.length} 个镜头 · 总时长 ${result.totalDuration ?? form.duration} 秒`,
         })
@@ -270,6 +331,71 @@ export function Studio({
       timersRef.current.forEach(clearInterval)
       timersRef.current = []
       setGenerating(false)
+    }
+  }
+
+  /** 历史载入：列表项不含大字段，按需拉 /api/generations/[id] 全文 */
+  async function loadFromHistory(id: number) {
+    if (loadingHistoryId) return
+    setLoadingHistoryId(id)
+    try {
+      const res = await fetch(`/api/generations/${id}`)
+      if (!res.ok) {
+        toast.error(res.status === 404 ? '该记录不存在或已删除' : '载入失败')
+        return
+      }
+      const data = await res.json()
+      const g = data.generation as GenerationRecord
+      const card = parseTaskCard(g)
+      if (card) {
+        setCurrent(null)
+        setTaskCard(card)
+        toast.success(`已载入任务卡《${card.title}》`)
+        return
+      }
+      const parsed = parseGeneration(g)
+      if (parsed) {
+        setTaskCard(null)
+        setCurrent(parsed)
+        toast.success(`已载入《${parsed.result.title}》`)
+      } else {
+        toast.error('该记录数据异常，无法载入')
+      }
+    } catch {
+      toast.error('载入失败，请检查网络')
+    } finally {
+      setLoadingHistoryId(null)
+    }
+  }
+
+  async function deleteHistory(id: number) {
+    const res = await fetch(`/api/generations?id=${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      onHistoryChange((prev) => prev.filter((h) => h.id !== id))
+      if (current?.id === id) setCurrent(null)
+      if (taskCard?.id === id) setTaskCard(null)
+      toast.success('已删除该记录')
+    } else if (res.status === 404) {
+      onHistoryChange((prev) => prev.filter((h) => h.id !== id))
+      toast.error('该记录已不存在')
+    } else {
+      toast.error('删除失败')
+    }
+  }
+
+  async function toggleStar(id: number, next: boolean) {
+    // 乐观更新：先改 UI，失败再回滚
+    onHistoryChange((prev) => prev.map((h) => (h.id === id ? { ...h, starred: next } : h)))
+    try {
+      const res = await fetch('/api/generations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, starred: next }),
+      })
+      if (!res.ok) throw new Error()
+    } catch {
+      onHistoryChange((prev) => prev.map((h) => (h.id === id ? { ...h, starred: !next } : h)))
+      toast.error('收藏状态保存失败')
     }
   }
 
@@ -392,27 +518,7 @@ export function Studio({
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-zinc-300">视觉风格</label>
-                <Select value={form.styleSlug} onValueChange={(v) => patchForm({ styleSlug: v })}>
-                  <SelectTrigger className="h-9 border-zinc-800 bg-zinc-950/60 text-sm text-zinc-200 focus-visible:ring-amber-500/40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72 border-zinc-800 bg-zinc-900 text-zinc-200">
-                    <SelectItem value="auto">✨ AI 自动决定（附选择理由）</SelectItem>
-                    {styleSeries.map((g) => (
-                      <SelectGroup key={g.key}>
-                        <SelectLabel className="text-zinc-500">
-                          {g.label}（{g.items.length}）
-                        </SelectLabel>
-                        {g.items.map((s) => (
-                          <SelectItem key={s.slug} value={s.slug}>
-                            {s.sid ? `${s.sid} · ` : ''}
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <StyleCombobox styles={styles} series={styleSeries} />
               </div>
             </div>
 
@@ -585,6 +691,46 @@ export function Studio({
           ) : (
             <EmptyPanel onPick={(idea) => patchForm({ idea })} />
           )}
+
+          {/* ===== AI 改稿：对当前结果下增量修改指令 ===== */}
+          {!generating && (current || taskCard) && (
+            <RefinePanel
+              key={current?.id ?? taskCard?.id}
+              targetId={(current ?? taskCard)!.id}
+              kind={current ? 'storyboard' : 'taskcard'}
+              onRefined={(gen) => {
+                if (current) {
+                  const parsed = parseGeneration(gen)
+                  if (parsed) {
+                    setCurrent(parsed)
+                    onHistoryChange((prev) =>
+                      prev.map((h) =>
+                        h.id === parsed.id
+                          ? { ...h, title: parsed.result.title, logline: parsed.result.logline ?? h.logline }
+                          : h
+                      )
+                    )
+                    toast.success(`已改稿《${parsed.result.title}》`, {
+                      description: `${parsed.result.shots.length} 个镜头 · 原记录已更新`,
+                    })
+                  } else {
+                    toast.error('改稿返回数据异常')
+                  }
+                } else if (taskCard) {
+                  const card = parseTaskCard(gen)
+                  if (card) {
+                    setTaskCard(card)
+                    onHistoryChange((prev) =>
+                      prev.map((h) => (h.id === card.id ? { ...h, title: card.title } : h))
+                    )
+                    toast.success(`已改稿《${card.title}》`, { description: '原任务卡已更新' })
+                  } else {
+                    toast.error('改稿返回数据异常')
+                  }
+                }
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -592,35 +738,294 @@ export function Studio({
       <HistorySection
         history={history}
         currentId={current?.id ?? taskCard?.id}
-        onLoad={(g) => {
-          const card = parseTaskCard(g)
-          if (card) {
-            setCurrent(null)
-            setTaskCard(card)
-            toast.success(`已载入任务卡《${card.title}》`)
-            return
-          }
-          const parsed = parseGeneration(g)
-          if (parsed) {
-            setTaskCard(null)
-            setCurrent(parsed)
-            toast.success(`已载入《${parsed.result.title}》`)
-          } else {
-            toast.error('该记录数据异常，无法载入')
-          }
-        }}
-        onDelete={async (id) => {
-          const res = await fetch(`/api/generations?id=${id}`, { method: 'DELETE' })
-          if (res.ok) {
-            onHistoryChange(history.filter((h) => h.id !== id))
-            if (current?.id === id) setCurrent(null)
-            toast.success('已删除该记录')
-          } else {
-            toast.error('删除失败')
-          }
-        }}
+        loadingId={loadingHistoryId}
+        onLoad={loadFromHistory}
+        onDelete={deleteHistory}
+        onToggleStar={toggleStar}
       />
     </div>
+  )
+}
+
+// ============================================================
+// 风格选择 combobox：369 个风格可搜索 + 收藏置顶（替代无搜索的长下拉）
+// ============================================================
+function StyleCombobox({
+  styles,
+  series,
+}: {
+  styles: StyleItem[]
+  series: { key: string; label: string; items: StyleItem[] }[]
+}) {
+  const form = useAppStore((s) => s.form)
+  const patchForm = useAppStore((s) => s.patchForm)
+  const favSlugs = useFavStore((s) => s.favSlugs)
+  const toggleFav = useFavStore((s) => s.toggleFav)
+  const [open, setOpen] = useState(false)
+
+  const selected =
+    form.styleSlug === 'auto' ? null : styles.find((s) => s.slug === form.styleSlug) ?? null
+
+  const favStyles = useMemo(
+    () => styles.filter((s) => favSlugs.includes(s.slug)),
+    [styles, favSlugs]
+  )
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="style-combobox-list"
+          className={cn(
+            'flex h-9 w-full items-center justify-between gap-2 rounded-lg border bg-zinc-950/60 px-3 text-sm text-zinc-200 transition-colors',
+            'border-zinc-800 hover:border-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 [&[data-state=open]]:border-amber-500/60'
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-1.5">
+            {selected ? (
+              <>
+                {favSlugs.includes(selected.slug) && (
+                  <Star className="size-3 shrink-0 fill-current text-amber-400" />
+                )}
+                <span className="truncate">{selected.name}</span>
+              </>
+            ) : (
+              <span className="text-zinc-500">✨ AI 自动决定</span>
+            )}
+          </span>
+          <ChevronsUpDown className="size-3.5 shrink-0 text-zinc-600" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent id="style-combobox-list" className="w-[min(92vw,420px)] border-zinc-800 bg-zinc-900 p-0" align="start">
+        <Command loop shouldFilter>
+          <CommandInput
+            placeholder="搜索风格名称 / 编号 / 关键词…"
+            className="border-b border-zinc-800 text-sm text-zinc-200 placeholder:text-zinc-600"
+          />
+          <CommandList className="max-h-80 scrollbar-thin">
+            <CommandEmpty className="py-6 text-center text-xs text-zinc-600">
+              没有匹配的风格，试试其他关键词
+            </CommandEmpty>
+
+            <CommandGroup
+              value="auto"
+              heading=""
+              className="[&>[cmdk-group-heading]]:hidden"
+            >
+              <CommandItem
+                value="auto AI 自动决定 附选择理由"
+                onSelect={() => {
+                  patchForm({ styleSlug: 'auto' })
+                  setOpen(false)
+                }}
+                className="text-zinc-200 aria-selected:bg-amber-500/10"
+              >
+                <Sparkles className="size-3.5 text-amber-400" />
+                AI 自动决定（附选择理由）
+                {form.styleSlug === 'auto' && <Check className="ml-auto size-3.5 text-amber-400" />}
+              </CommandItem>
+            </CommandGroup>
+
+            {favStyles.length > 0 && (
+              <CommandGroup
+                heading={
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-400/90">
+                    <Star className="size-2.5 fill-current" /> 我的收藏（{favStyles.length}）
+                  </span>
+                }
+              >
+                {favStyles.map((s) => (
+                  <CommandItem
+                    key={`fav-${s.slug}`}
+                    value={`收藏 ${s.slug} ${s.name} ${s.nameEn} ${s.sid} ${s.tags}`}
+                    onSelect={() => {
+                      patchForm({ styleSlug: s.slug })
+                      setOpen(false)
+                    }}
+                    className="text-zinc-200 aria-selected:bg-amber-500/10"
+                  >
+                    <Star
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleFav(s.slug)
+                      }}
+                      className="mr-0.5 size-3 shrink-0 cursor-pointer fill-current text-amber-400 hover:text-amber-300"
+                      aria-label={`取消收藏 ${s.name}`}
+                    />
+                    <span className="truncate">
+                      {s.sid ? `${s.sid} · ` : ''}
+                      {s.name}
+                    </span>
+                    {form.styleSlug === s.slug && <Check className="ml-auto size-3.5 text-amber-400" />}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {series.map((g) => (
+              <CommandGroup
+                key={g.key}
+                heading={`${g.label}（${g.items.length}）`}
+              >
+                {g.items.map((s) => {
+                  const fav = favSlugs.includes(s.slug)
+                  return (
+                    <CommandItem
+                      key={s.slug}
+                      value={`${s.slug} ${s.name} ${s.nameEn} ${s.sid} ${s.tags} ${g.label}`}
+                      onSelect={() => {
+                        patchForm({ styleSlug: s.slug })
+                        setOpen(false)
+                      }}
+                      className="text-zinc-300 aria-selected:bg-zinc-800/80"
+                    >
+                      <Star
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleFav(s.slug)
+                        }}
+                        className={cn(
+                          'mr-0.5 size-3 shrink-0 cursor-pointer hover:text-amber-400',
+                          fav ? 'fill-current text-amber-400' : 'text-zinc-700'
+                        )}
+                        aria-label={fav ? `取消收藏 ${s.name}` : `收藏 ${s.name}`}
+                      />
+                      <span className="truncate">
+                        {s.sid ? `${s.sid} · ` : ''}
+                        {s.name}
+                      </span>
+                      {form.styleSlug === s.slug && <Check className="ml-auto size-3.5 text-amber-400" />}
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// ============================================================
+// AI 改稿面板：对当前分镜稿/任务卡下增量修改指令
+// ============================================================
+function RefinePanel({
+  targetId,
+  kind,
+  onRefined,
+}: {
+  targetId: number
+  kind: 'storyboard' | 'taskcard'
+  onRefined: (gen: GenerationRecord) => void
+}) {
+  const [instruction, setInstruction] = useState('')
+  const [refining, setRefining] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+  const [statusIdx, setStatusIdx] = useState(0)
+  const timersRef = useRef<ReturnType<typeof setInterval>[]>([])
+
+  useEffect(() => {
+    return () => timersRef.current.forEach(clearInterval)
+  }, [])
+
+  async function handleRefine() {
+    const text = instruction.trim()
+    if (text.length < 4) {
+      toast.error('修改指令至少 4 个字', { description: '例如：第 2 镜改成特写，节奏放缓' })
+      return
+    }
+    setRefining(true)
+    setElapsed(0)
+    setStatusIdx(0)
+    timersRef.current.forEach(clearInterval)
+    const t1 = setInterval(() => setElapsed((e) => e + 1), 1000)
+    const t2 = setInterval(() => setStatusIdx((i) => (i + 1) % REFINING_MESSAGES.length), 5000)
+    timersRef.current = [t1, t2]
+
+    try {
+      const res = await fetch('/api/generate/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: targetId, instruction: text }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || '改稿失败')
+      onRefined(data.generation as GenerationRecord)
+      setInstruction('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '改稿失败，请重试')
+    } finally {
+      timersRef.current.forEach(clearInterval)
+      timersRef.current = []
+      setRefining(false)
+    }
+  }
+
+  return (
+    <Card className="mt-5 border-zinc-800 bg-zinc-900/40">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <MessageSquare className="size-4 text-amber-400" />
+          AI 改稿
+          <Badge variant="outline" className="border-zinc-800 text-[10px] font-normal text-zinc-500">
+            {kind === 'storyboard' ? '分镜稿 · 增量修改' : '任务卡 · 增量修改'}
+          </Badge>
+        </CardTitle>
+        <CardDescription className="text-xs">
+          对当前结果下修改指令，未提及的部分保持原样；改动会更新到同一条历史记录
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-1.5">
+          {QUICK_REFINE_INSTRUCTIONS.map((q) => (
+            <button
+              key={q}
+              onClick={() => setInstruction(q)}
+              disabled={refining}
+              className="rounded-full border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-[11px] text-zinc-400 transition-colors hover:border-amber-500/40 hover:text-amber-300 disabled:opacity-50"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !refining && handleRefine()}
+            disabled={refining}
+            maxLength={500}
+            placeholder="例：第 3 镜改成俯拍特写，字幕改成「每一杯都有 Sunrise」"
+            className="h-9 border-zinc-800 bg-zinc-950/60 text-sm text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-amber-500/40"
+          />
+          <Button
+            onClick={handleRefine}
+            disabled={refining || instruction.trim().length < 4}
+            className="h-9 shrink-0 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+          >
+            {refining ? (
+              <>
+                <Loader2 className="size-3.5 ff-spin-slow" />
+                {REFINING_MESSAGES[statusIdx]}
+                <span className="ml-1 font-mono text-[11px] text-zinc-500">{elapsed}s</span>
+              </>
+            ) : (
+              <>
+                <Wand2 className="size-3.5" />
+                改稿
+              </>
+            )}
+          </Button>
+        </div>
+        <p className="flex items-center gap-1 text-[11px] text-zinc-600">
+          <Search className="size-3" />
+          试过的指令：换开场钩子 / 调镜头时长 / 改字幕文案 / 增删镜头 / 统一色调
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 
