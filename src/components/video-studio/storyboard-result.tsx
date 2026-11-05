@@ -201,6 +201,9 @@ export function StoryboardResultView({
         </CardContent>
       </Card>
 
+      {/* ===== 镜头时间轴总览（宽度=时长占比，亮度=运动能量，点击跳转） ===== */}
+      <ShotTimeline shots={result.shots} totalSec={totalSec} />
+
       {/* ===== 镜头时间轴 ===== */}
       <div>
         <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-200">
@@ -209,7 +212,9 @@ export function StoryboardResultView({
         </h4>
         <div className="space-y-4">
           {result.shots.map((shot, i) => (
-            <ShotCard key={i} shot={shot} index={i} />
+            <div key={i} id={`shot-${i}`} className="scroll-mt-24 rounded-xl">
+              <ShotCard shot={shot} index={i} />
+            </div>
           ))}
         </div>
       </div>
@@ -429,6 +434,95 @@ function ShotCard({ shot, index }: { shot: StoryboardShot; index: number }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// 镜头时间轴总览：宽度=时长占比，亮度=运动能量，点击跳到对应镜头卡
+// ============================================================
+function ShotTimeline({ shots, totalSec }: { shots: StoryboardShot[]; totalSec: number }) {
+  const [hover, setHover] = useState<number | null>(null)
+
+  const span = (s: StoryboardShot) => Math.max(0.5, s.end - s.start)
+  const total = shots.reduce((a, s) => a + span(s), 0) || 1
+
+  function jump(i: number) {
+    const el = document.getElementById(`shot-${i}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('ff-shot-flash')
+    window.setTimeout(() => el.classList.remove('ff-shot-flash'), 1300)
+  }
+
+  const active = hover !== null ? shots[hover] : null
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-3.5">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400">
+          <Timer className="size-3 text-amber-400/80" />
+          时间轴总览
+          <span className="font-normal text-zinc-600">· 格宽=时长 · 亮度=能量 · 点击跳转镜头</span>
+        </div>
+        <span className="font-mono text-[10px] text-zinc-600">{formatTC(totalSec)}</span>
+      </div>
+
+      <div
+        className="flex h-9 gap-0.5 overflow-hidden rounded-lg bg-zinc-900/60 p-0.5"
+        role="tablist"
+        aria-label="镜头时间轴"
+      >
+        {shots.map((s, i) => {
+          const e = typeof s.energy === 'number' ? s.energy : 3
+          const isHover = hover === i
+          return (
+            <button
+              key={i}
+              role="tab"
+              aria-selected={isHover}
+              onClick={() => jump(i)}
+              onMouseEnter={() => setHover(i)}
+              onFocus={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              onBlur={() => setHover(null)}
+              style={{
+                width: `${(span(s) / total) * 100}%`,
+                background: `linear-gradient(180deg, rgba(252,211,77,${0.28 + (e / 5) * 0.55}), rgba(217,119,6,${
+                  0.2 + (e / 5) * 0.5
+                }))`,
+              }}
+              className={cn(
+                'flex min-w-0 items-center justify-center rounded-[5px] font-mono text-[10px] transition-all',
+                isHover
+                  ? 'text-zinc-950 ring-2 ring-amber-300/90'
+                  : 'text-zinc-300/90 hover:text-zinc-950'
+              )}
+              title={`镜 ${s.index} · ${s.shotSize} · ${formatTC(s.start)}-${formatTC(s.end)} · 能量 ${e}/5`}
+            >
+              <span className="truncate px-0.5">{s.index}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* 悬停详情 / 默认提示 */}
+      <div className="mt-2 flex h-8 items-center gap-2 overflow-hidden text-[11px] text-zinc-500">
+        {active ? (
+          <>
+            <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-amber-300">
+              镜 {active.index}
+            </span>
+            <span className="shrink-0 text-zinc-400">{active.shotSize}</span>
+            <span className="shrink-0 font-mono text-zinc-600">
+              {formatTC(active.start)} → {formatTC(active.end)}
+            </span>
+            <span className="min-w-0 truncate">{active.scene}</span>
+          </>
+        ) : (
+          <span className="text-zinc-600">悬停查看镜头详情，点击直接跳到镜头卡</span>
+        )}
+      </div>
     </div>
   )
 }

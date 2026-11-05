@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { SiteHeader } from './site-header'
 import { Hero } from './hero'
@@ -12,7 +12,7 @@ import { MethodologyGuide } from './methodology-guide'
 import { Studio } from './studio'
 import { CommandPalette } from './command-palette'
 import { InspirationDice } from './inspiration-dice'
-import { useAppStore } from '@/lib/store'
+import { useAppStore, useFavStore } from '@/lib/store'
 import type { EffectItem, HistoryListItem, PromptItem, StyleItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -33,6 +33,18 @@ export function VideoStudioApp({
   // 提示词的复制计数在客户端维护（乐观更新 + 后端持久化）
   const [prompts, setPrompts] = useState(initialPrompts)
   const [history, setHistory] = useState(initialHistory)
+  // 弹层类组件（Radix useId 消费者）仅客户端挂载，避免 SSR/水合 useId 错位
+  // useSyncExternalStore：服务端快照 false / 客户端快照 true，水合后自动切换
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
+  useEffect(() => {
+    // 持久化状态（表单/收藏）挂载后再注入，保证首帧与 SSR HTML 完全一致
+    useAppStore.persist.rehydrate()
+    useFavStore.persist.rehydrate()
+  }, [])
   // 切换标签时回到内容区顶部（避开吸顶导航）
   const sectionRef = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -90,16 +102,20 @@ export function VideoStudioApp({
       <SiteFooter />
 
       {/* 全局能力：⌘K 命令面板 + 灵感骰子 + 回到顶部 */}
-      <CommandPalette
-        styles={initialStyles}
-        prompts={prompts}
-        effects={initialEffects}
-      />
-      <InspirationDice
-        styles={initialStyles}
-        prompts={prompts}
-        effects={initialEffects}
-      />
+      {mounted && (
+        <CommandPalette
+          styles={initialStyles}
+          prompts={prompts}
+          effects={initialEffects}
+        />
+      )}
+      {mounted && (
+        <InspirationDice
+          styles={initialStyles}
+          prompts={prompts}
+          effects={initialEffects}
+        />
+      )}
       <BackToTop />
     </div>
   )

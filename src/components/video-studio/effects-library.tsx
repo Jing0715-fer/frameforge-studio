@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Code2, Github, Move, Search, Wand2 } from 'lucide-react'
+import { Code2, Github, Move, Search, Star, Wand2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,6 +10,8 @@ import { CategoryChips } from './category-chips'
 import { CopyButton } from './copy-button'
 import { EffectDemo } from './effect-demo'
 import { getRepo } from '@/lib/repos'
+import { useFavStore } from '@/lib/store'
+import { toast } from 'sonner'
 import type { EffectItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +20,9 @@ export const EFFECT_CATEGORIES = ['运镜', '转场', '文字动效', '节奏', 
 export function EffectsLibrary({ effects }: { effects: EffectItem[] }) {
   const [category, setCategory] = useState('全部')
   const [q, setQ] = useState('')
+  const favEffectIds = useFavStore((s) => s.favEffectIds)
+  const favOnly = useFavStore((s) => s.effectFavOnly)
+  const setFavOnly = useFavStore((s) => s.setEffectFavOnly)
 
   const categories = useMemo(
     () => Array.from(new Set([...EFFECT_CATEGORIES, ...effects.map((e) => e.category)])),
@@ -33,11 +38,12 @@ export function EffectsLibrary({ effects }: { effects: EffectItem[] }) {
   const filtered = useMemo(() => {
     const kw = q.trim().toLowerCase()
     return effects.filter((e) => {
+      if (favOnly && !favEffectIds.includes(e.id)) return false
       if (category !== '全部' && e.category !== category) return false
       if (kw && !`${e.name}${e.nameEn}${e.description}`.toLowerCase().includes(kw)) return false
       return true
     })
-  }, [effects, category, q])
+  }, [effects, category, q, favOnly, favEffectIds])
 
   return (
     <div>
@@ -68,12 +74,32 @@ export function EffectsLibrary({ effects }: { effects: EffectItem[] }) {
           counts={counts}
           className="sm:flex-1"
         />
+        <button
+          onClick={() => setFavOnly(!favOnly)}
+          aria-pressed={favOnly}
+          aria-label="只看收藏的动效"
+          disabled={favEffectIds.length === 0 && !favOnly}
+          className={cn(
+            'flex h-10 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+            favOnly
+              ? 'border-amber-500/50 bg-amber-500/15 text-amber-300'
+              : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200'
+          )}
+        >
+          <Star className={cn('size-3.5', favOnly && 'fill-current')} />
+          收藏 {favEffectIds.length > 0 && `(${favEffectIds.length})`}
+        </button>
       </div>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-16 text-center">
           <Move className="size-8 text-zinc-700" />
-          <p className="mt-3 text-sm text-zinc-500">没有匹配的动效</p>
+          <p className="mt-3 text-sm text-zinc-500">
+            {favOnly ? '收藏夹里还没有匹配的动效' : '没有匹配的动效'}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {favOnly ? '点演示区右上角的星标即可收藏' : '换个关键词或分类试试'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -89,15 +115,39 @@ export function EffectsLibrary({ effects }: { effects: EffectItem[] }) {
 function EffectCard({ effect }: { effect: EffectItem }) {
   const [showCode, setShowCode] = useState(false)
   const repo = getRepo(effect.sourceRepo)
+  const favEffectIds = useFavStore((s) => s.favEffectIds)
+  const toggleFavEffect = useFavStore((s) => s.toggleFavEffect)
+  const isFav = favEffectIds.includes(effect.id)
 
   return (
-    <Card className="group overflow-hidden border-zinc-800 bg-zinc-900/50 transition-all hover:-translate-y-0.5 hover:border-amber-500/40">
+    <Card
+      className={cn(
+        'group overflow-hidden border-zinc-800 bg-zinc-900/50 transition-all hover:-translate-y-0.5 hover:border-amber-500/40',
+        isFav && 'border-amber-500/50'
+      )}
+    >
       <div className="demo-stage relative h-36 border-b border-zinc-800 bg-zinc-950">
         <div className="absolute inset-0 ff-grid-bg opacity-60" aria-hidden="true" />
         <EffectDemo demo={effect.demo} />
         <Badge className="absolute left-3 top-3 border-white/15 bg-black/50 text-[11px] text-zinc-200 backdrop-blur">
           {effect.category}
         </Badge>
+        <button
+          onClick={() => {
+            toggleFavEffect(effect.id)
+            toast.success(isFav ? '已取消收藏' : '已收藏该动效', {
+              description: isFav ? undefined : '点上方「收藏」可只看收藏内容',
+            })
+          }}
+          aria-label={isFav ? `取消收藏 ${effect.name}` : `收藏 ${effect.name}`}
+          aria-pressed={isFav}
+          className={cn(
+            'absolute right-3 top-3 rounded-full p-1.5 backdrop-blur transition-colors hover:bg-black/70',
+            isFav ? 'bg-black/55 text-amber-400' : 'bg-black/55 text-white/60 hover:text-amber-300'
+          )}
+        >
+          <Star className={cn('size-4', isFav && 'fill-current')} />
+        </button>
         <span className="absolute bottom-2.5 right-3 font-mono text-[9px] uppercase tracking-widest text-zinc-600">
           LIVE DEMO
         </span>

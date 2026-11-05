@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, Copy, Dices, Github, Lightbulb, Search, Wand2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Dices, Github, Lightbulb, Search, Star, Wand2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { CategoryChips } from './category-chips'
 import { CopyButton } from './copy-button'
 import { getRepo } from '@/lib/repos'
-import { useAppStore } from '@/lib/store'
+import { useAppStore, useFavStore } from '@/lib/store'
 import { toast } from 'sonner'
 import type { PromptItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -46,6 +46,9 @@ export function PromptLibrary({
   const [category, setCategory] = useState('全部')
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<'latest' | 'hot'>('latest')
+  const favPromptIds = useFavStore((s) => s.favPromptIds)
+  const favOnly = useFavStore((s) => s.promptFavOnly)
+  const setFavOnly = useFavStore((s) => s.setPromptFavOnly)
 
   const counts = useMemo(() => {
     const m: Record<string, number> = { 全部: prompts.length }
@@ -56,13 +59,14 @@ export function PromptLibrary({
   const filtered = useMemo(() => {
     const kw = q.trim().toLowerCase()
     const list = prompts.filter((p) => {
+      if (favOnly && !favPromptIds.includes(p.id)) return false
       if (category !== '全部' && p.category !== category) return false
       if (kw && !`${p.title}${p.content}${p.tags}${p.useCase}`.toLowerCase().includes(kw))
         return false
       return true
     })
     return sort === 'hot' ? [...list].sort((a, b) => b.copyCount - a.copyCount) : list
-  }, [prompts, category, q, sort])
+  }, [prompts, category, q, sort, favOnly, favPromptIds])
 
   const randomInspire = () => {
     const pool = prompts.length ? prompts : []
@@ -115,32 +119,53 @@ export function PromptLibrary({
           counts={counts}
           className="lg:flex-1"
         />
-        <div className="flex shrink-0 rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5">
-          {(
-            [
-              ['latest', '最新'],
-              ['hot', '最热'],
-            ] as const
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setSort(k)}
-              className={cn(
-                'h-7 rounded-md px-3 text-xs font-medium transition-colors',
-                sort === k ? 'bg-amber-500/15 text-amber-300' : 'text-zinc-500 hover:text-zinc-300'
-              )}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setFavOnly(!favOnly)}
+            aria-pressed={favOnly}
+            aria-label="只看收藏的提示词"
+            disabled={favPromptIds.length === 0 && !favOnly}
+            className={cn(
+              'flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+              favOnly
+                ? 'border-amber-500/50 bg-amber-500/15 text-amber-300'
+                : 'border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200'
+            )}
+          >
+            <Star className={cn('size-3.5', favOnly && 'fill-current')} />
+            收藏 {favPromptIds.length > 0 && `(${favPromptIds.length})`}
+          </button>
+          <div className="flex rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5">
+            {(
+              [
+                ['latest', '最新'],
+                ['hot', '最热'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setSort(k)}
+                className={cn(
+                  'h-7 rounded-md px-3 text-xs font-medium transition-colors',
+                  sort === k ? 'bg-amber-500/15 text-amber-300' : 'text-zinc-500 hover:text-zinc-300'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-16 text-center">
           <Lightbulb className="size-8 text-zinc-700" />
-          <p className="mt-3 text-sm text-zinc-500">没有匹配的提示词</p>
-          <p className="mt-1 text-xs text-zinc-600">换个关键词或分类试试</p>
+          <p className="mt-3 text-sm text-zinc-500">
+            {favOnly ? '收藏夹里还没有匹配的提示词' : '没有匹配的提示词'}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {favOnly ? '点卡片右上角的星标即可收藏' : '换个关键词或分类试试'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -162,6 +187,9 @@ function PromptCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const repo = getRepo(prompt.sourceRepo)
+  const favPromptIds = useFavStore((s) => s.favPromptIds)
+  const toggleFavPrompt = useFavStore((s) => s.toggleFavPrompt)
+  const isFav = favPromptIds.includes(prompt.id)
 
   function handleUse() {
     const { applyPrompt } = useAppStore.getState()
@@ -170,16 +198,39 @@ function PromptCard({
   }
 
   return (
-    <Card className="flex flex-col border-zinc-800 bg-zinc-900/50 transition-colors hover:border-zinc-700">
+    <Card
+      className={cn(
+        'flex flex-col border-zinc-800 bg-zinc-900/50 transition-colors hover:border-zinc-700',
+        isFav && 'border-amber-500/40'
+      )}
+    >
       <CardContent className="flex flex-1 flex-col p-4">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-[15px] font-semibold leading-snug text-zinc-100">{prompt.title}</h3>
-          <Badge
-            variant="outline"
-            className={cn('shrink-0 text-[11px]', CATEGORY_STYLES[prompt.category])}
-          >
-            {prompt.category}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              onClick={() => {
+                toggleFavPrompt(prompt.id)
+                toast.success(isFav ? '已取消收藏' : '已收藏该提示词', {
+                  description: isFav ? undefined : '点右上角「收藏」可只看收藏内容',
+                })
+              }}
+              aria-label={isFav ? `取消收藏 ${prompt.title}` : `收藏 ${prompt.title}`}
+              aria-pressed={isFav}
+              className={cn(
+                'rounded-md p-1 transition-colors hover:bg-zinc-800',
+                isFav ? 'text-amber-400' : 'text-zinc-600 hover:text-zinc-300'
+              )}
+            >
+              <Star className={cn('size-4', isFav && 'fill-current')} />
+            </button>
+            <Badge
+              variant="outline"
+              className={cn('shrink-0 text-[11px]', CATEGORY_STYLES[prompt.category])}
+            >
+              {prompt.category}
+            </Badge>
+          </div>
         </div>
         <p className="mt-1 text-[11px] text-zinc-600">{prompt.useCase}</p>
 
